@@ -46,6 +46,8 @@ const ERRORS: Record<string, [string, string]> = {
   size_has_stock: ['Te velikosti ne moreš odstraniti, ker je še na zalogi.', "You can't remove a size that is still in stock."],
   invalid_image: ['Naloži JPG, PNG ali WebP.', 'Upload a JPG, PNG or WebP.'],
   image_too_large: ['Slika je prevelika.', 'The image is too large.'],
+  storage_full: ['Prostor za fotografije je poln (meja brezplačnega paketa). Odstrani stare fotografije.', 'Photo storage is full (the free tier limit). Remove old photos.'],
+  too_many_uploads: ['Ta mesec je naloženih že preveč fotografij (meja brezplačnega paketa).', 'Too many photos uploaded this month (the free tier limit).'],
   location_not_found: ['Lokacije ni.', 'Location not found.'],
   same_location: ['Izberi drugo lokacijo.', 'Pick a different location.'],
   nothing_to_move: ['Ni česa premakniti.', 'Nothing to move.'],

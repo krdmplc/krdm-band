@@ -1,6 +1,8 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "krdm-merch",
+  // "Martin Jagodic Personal". DNS for krdm.si moves here when merch.krdm.si is needed.
+  "account_id": "eb91c59227870b58663b4f9346affa87",
   "main": "src/worker/index.ts",
   "compatibility_date": "2026-11-01",
   "compatibility_flags": ["nodejs_compat"],
@@ -15,16 +17,11 @@
     {
       "binding": "DB",
       "database_name": "krdm-merch",
-      // Replace with the id printed by `wrangler d1 create krdm-merch` before the
-      // first deploy. Local development doesn't need a real one.
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      // Created with `wrangler d1 create krdm-merch --location weur` (2026-11-23).
+      "database_id": "095aa713-0010-451a-8c8d-bf7340351eb4",
       "migrations_dir": "migrations"
     }
   ],
-  "r2_buckets": [{ "binding": "IMAGES", "bucket_name": "krdm-merch-images" }],
-  "vars": {
-    // The app's own address, used in invite links.
-    "APP_URL": "https://merch.krdm.si"
-  }
+  "r2_buckets": [{ "binding": "IMAGES", "bucket_name": "krdm-merch-images" }]
   // Secrets (wrangler secret put): IP_SALT — hashes customer IPs for the order rate limit.
 }

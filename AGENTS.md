@@ -86,23 +86,43 @@ are on, their own pots. A location's keeper may move and count its stock.
 - Comments say what a piece is for and why, above it.
 - Keep `public/sw.js` and `index.html` working together: the worker caches what
   `index.html` links. One JS bundle on purpose.
-- **Migrations**: never edit one that has been applied anywhere remote; add the
-  next number. `0001_init.sql` has not been deployed yet (2026-11-22), so it may
-  still change until the first deploy — then this line goes.
+- **Migrations**: never edit one that has been applied remotely (all of them,
+  since 2026-11-23); add the next number, and apply it with
+  `npm run db:migrate:remote` before deploying code that needs it.
 
-## Deploying (not done yet)
+## Deploying
+
+The Worker, D1 database (`krdm-merch`, Western Europe) and R2 bucket
+(`krdm-merch-images`) live in the "Martin Jagodic Personal" Cloudflare account
+(`account_id` in `wrangler.jsonc`). It runs at
+https://krdm-merch.jagodicmartin1.workers.dev until `merch.krdm.si` is needed;
+krdm.si's DNS moves to Cloudflare then (see the brief, "Hosting and domain").
 
 ```bash
-npx wrangler d1 create krdm-merch            # put the id into wrangler.jsonc
-npx wrangler r2 bucket create krdm-merch-images
-npx wrangler secret put IP_SALT              # any long random string
-npm run db:migrate:remote
-npm run deploy
-node scripts/create-admin.mjs --name "…" --email … --remote --url https://merch.krdm.si
+npm run db:migrate:remote                    # first, if there is a new migration
+npm run deploy                               # build + wrangler deploy
 ```
 
-Then attach `merch.krdm.si` (see the brief, "Hosting and domain"). Don't commit
-secrets; `.dev.vars` is ignored.
+One-time setup, done on 2026-11-23: `wrangler d1 create krdm-merch --location weur`,
+`wrangler r2 bucket create krdm-merch-images --location weur` (R2 commands need
+`CLOUDFLARE_ACCOUNT_ID` set), `wrangler secret put IP_SALT` (a long random
+string), and the website's merch imported with `scripts/import-hugo.mjs`. The
+first account: `node scripts/create-admin.mjs --name "…" --email … --remote --url
+https://krdm-merch.jagodicmartin1.workers.dev`. Don't commit secrets; `.dev.vars`
+is ignored.
+
+## It must cost nothing
+
+The app runs on Cloudflare's free tiers, and going over one means something is
+wrong, so the app fails rather than pays. Workers and D1 on the Free plan stop
+at their daily limits and are never billed. R2 is billed past its free tier and
+Cloudflare offers no hard cap for it, so `src/worker/lib/budget.ts` refuses
+uploads beyond 4 GB stored or 20 000 writes a month; reads only go through the
+Worker, which the Workers limit keeps far below R2's free reads. Don't add a
+path that reads or writes R2 without going through those limits, don't serve the
+bucket publicly (an `r2.dev` URL or a custom domain on it bypasses the Worker),
+and don't move the account to Workers Paid. A budget alert on the account emails
+on any spend (Billing → Billable Usage).
 
 ## Not built yet
 

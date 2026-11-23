@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { requireUser } from '../lib/auth'
+import { checkR2Upload, countR2Write } from '../lib/budget'
 import { loadProducts } from '../lib/catalog'
 import { all, first, stmt } from '../lib/db'
 import { type AppEnv, body, fail, nowIso, uid, user } from '../lib/http'
@@ -106,6 +107,7 @@ products.put('/:id', async (c) => {
 const IMAGE_TYPES: Record<string, string> = { 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/png': 'png' }
 
 // The app shrinks photos before uploading (longest side 2000 px) and sends their size.
+// Uploads are capped to keep R2 free (lib/budget.ts).
 products.post('/:id/images', async (c) => {
   const me = user(c)
   const id = c.req.param('id')
@@ -115,16 +117,17 @@ products.post('/:id/images', async (c) => {
   const form = await c.req.formData()
   const file = form.get('file')
   if (!(file instanceof File) || !IMAGE_TYPES[file.type]) fail(400, 'invalid_image')
-  if (file.size > 5_000_000) fail(400, 'image_too_large')
+  await checkR2Upload(c.env.DB, file.size)
   const imageId = uid()
   const key = `products/${id}/${imageId}.${IMAGE_TYPES[file.type]}`
+  await countR2Write(c.env.DB).run()
   await c.env.IMAGES.put(key, await file.arrayBuffer(), { httpMetadata: { contentType: file.type } })
   const width = Number(form.get('width')) || null
   const height = Number(form.get('height')) || null
   await c.env.DB.batch([
     stmt(c.env.DB,
-      'INSERT INTO product_images (id, product_id, key, width, height, sort) VALUES (?, ?, ?, ?, ?, (SELECT COALESCE(MAX(sort), -1) + 1 FROM product_images WHERE product_id = ?))',
-      imageId, id, key, width, height, id),
+      'INSERT INTO product_images (id, product_id, key, width, height, bytes, sort) VALUES (?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(sort), -1) + 1 FROM product_images WHERE product_id = ?))',
+      imageId, id, key, width, height, file.size, id),
     stmt(c.env.DB, 'UPDATE products SET updated_at = ? WHERE id = ?', nowIso(), id)
   ])
   return c.json({ id: imageId, key, width, height })

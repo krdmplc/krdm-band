@@ -49,6 +49,9 @@ Both admin roles are kept in this app, not in the login provider (see Login).
 - **Variants are sizes only.** A colour is a separate product.
 - **The phone app is a PWA** (installable, works offline), in Slovenian and
   English.
+- **Hosting must cost $0.** Going over a free tier means something is wrong, so
+  the app fails rather than pays (R2 uploads are capped in the code; see
+  AGENTS.md, "It must cost nothing").
 - **Hosting must be free at this scale.** Cloudflare Workers + D1 (SQLite)
   + R2 (photos). **Cloudflare is the confirmed platform** (agreed with Aleš on
   2026-11-22; the Plc app may move there too). Keep the schema plain SQLite and
@@ -352,7 +355,9 @@ SSO plan, which needed php-xml the Pi doesn't have.
 
 ## Built so far
 
-As of 2026-11-22, running locally (not deployed):
+Deployed on 2026-11-23 at https://krdm-merch.jagodicmartin1.workers.dev (the
+"Martin Jagodic Personal" Cloudflare account, data in Western Europe), with the
+website's merch imported:
 
 - Sign-in with invite links and passwords; people, bands and the label, band
   admins; price tiers and shipping settings.
@@ -378,9 +383,8 @@ As of 2026-11-22, running locally (not deployed):
 - **Box template** (from [merch-gig-box.md](merch-gig-box.md)): standard
   contents per gig box, "pack to template", a closing count that asks only
   what's missing, and the printable contents list with a QR code.
-- **Deploy**: create the D1 database and R2 bucket, set `IP_SALT`, run the
-  migrations and the import, create the first admin, and put the app on
-  `merch.krdm.si` (move the DNS to Cloudflare, or a Pages CNAME).
+- **`merch.krdm.si`**: move krdm.si's DNS to Cloudflare when the address is
+  needed (decided: no Pages CNAME workaround).
 - **Website switch-over** (krdm-www): catalog at build time, availability with
   JS, checkout to the API, rebuild hook on product changes. It waits for email,
   so customers get their confirmation and admins hear about new orders.

@@ -16,7 +16,7 @@
 // - draft items are imported unpublished; weights are a guess by kind, check them.
 
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { basename, join, resolve } from 'node:path'
 import matter from 'gray-matter'
 
@@ -103,7 +103,7 @@ for (const file of files) {
     if (!existsSync(local)) return
     const key = `imported/${basename(path)}`
     const [w, h] = imageSize(local)
-    sql.push(`INSERT OR IGNORE INTO product_images (id, product_id, key, width, height, sort) VALUES (${q(`import-${id}-${i}`)}, ${q(id)}, ${q(key)}, ${q(w)}, ${q(h)}, ${i});`)
+    sql.push(`INSERT OR IGNORE INTO product_images (id, product_id, key, width, height, bytes, sort) VALUES (${q(`import-${id}-${i}`)}, ${q(id)}, ${q(key)}, ${q(w)}, ${q(h)}, ${statSync(local).size}, ${i});`)
     images.push({ key, local })
     report.photos++
   })
