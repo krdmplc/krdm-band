@@ -4,6 +4,7 @@
 //
 //   node scripts/create-admin.mjs --name "Ime Priimek" --email ime@example.com
 //   node scripts/create-admin.mjs --name … --email … --remote --url https://band.krdm.si
+//   node scripts/create-admin.mjs --name … --email … --preview   (the Previews' database)
 
 import { execFileSync } from 'node:child_process'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
@@ -14,13 +15,20 @@ const { values } = parseArgs({
     name: { type: 'string' },
     email: { type: 'string' },
     remote: { type: 'boolean', default: false },
-    url: { type: 'string', default: 'http://localhost:5173' }
+    // The database every Preview shares (wrangler.jsonc, `previews`); implies --remote.
+    preview: { type: 'boolean', default: false },
+    url: { type: 'string' }
   }
 })
 if (!values.name || !values.email) {
-  console.error('Usage: node scripts/create-admin.mjs --name "Name" --email you@example.com [--remote --url https://band.krdm.si]')
+  console.error('Usage: node scripts/create-admin.mjs --name "Name" --email you@example.com [--remote --url https://band.krdm.si | --preview]')
   process.exit(1)
 }
+
+const url = values.url ?? (values.preview ? 'https://main-krdm-band.krdm.workers.dev' : 'http://localhost:5173')
+const target = values.preview
+  ? ['krdm-band-preview', '--remote', '-c', 'wrangler.preview-migrations.jsonc']
+  : ['krdm-band', values.remote ? '--remote' : '--local']
 
 const q = (s) => `'${String(s).replace(/'/g, "''")}'`
 const id = randomUUID()
@@ -35,5 +43,5 @@ const sql = [
     `INSERT INTO subscriptions (user_id, topic, owner_id) VALUES (${q(id)}, ${q(t)}, '*')`)
 ].join('; ')
 
-execFileSync('npx', ['wrangler', 'd1', 'execute', 'krdm-band', values.remote ? '--remote' : '--local', '--command', sql], { stdio: 'inherit' })
-console.log(`\nSet the password here (valid 14 days):\n${values.url}/invite/${token}\n`)
+execFileSync('npx', ['wrangler', 'd1', 'execute', ...target, '--command', sql], { stdio: 'inherit' })
+console.log(`\nSet the password here (valid 14 days):\n${url}/invite/${token}\n`)

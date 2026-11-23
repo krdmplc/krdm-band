@@ -67,12 +67,15 @@ pull request. GitHub enforces this with a ruleset on `main`.
 3. Before pushing, run `npm run check`. Don't push a branch that fails it.
 4. Push the branch and open a PR: `gh pr create --base main`. Title says what
    changes; the body says why and how you checked it (including phone width and
-   offline, if it touches selling), and whether it adds a migration.
+   offline, if it touches selling), and whether it adds a migration. Every push
+   deploys the branch's Preview and the PR gets a comment with its link (see
+   Previews); check your change there too.
 5. Keep PRs small and on one topic. Don't reformat or "tidy" files you didn't
    need to touch.
 6. Never run `npm run deploy`, `npm run db:migrate:remote`, `wrangler secret …`,
-   `wrangler d1 execute --remote`, or anything else that touches the Cloudflare
-   account. A maintainer migrates and deploys after merging.
+   `wrangler preview …`, `wrangler d1 execute --remote`, or anything else that
+   touches the Cloudflare account. CI deploys (see Deploying); merging is the
+   deploy.
 7. If something seems to need a change on `main`, the Cloudflare setup, or
    secrets, stop and ask in the PR. Don't work around it.
 
@@ -127,8 +130,11 @@ are on, their own pots. A location's keeper may move and count its stock.
 - Keep `public/sw.js` and `index.html` working together: the worker caches what
   `index.html` links. One JS bundle on purpose.
 - **Migrations**: never edit one that has been applied remotely (all of them,
-  since 2026-11-23); add the next number, and apply it with
-  `npm run db:migrate:remote` before deploying code that needs it.
+  since 2026-11-23); add the next number. CI applies it to the preview database
+  when the branch is pushed and to production when it reaches `main`, before the
+  code that needs it. Write it so old code still works after it runs (add
+  columns and tables; drop them in a later PR), because the deploy follows it
+  by a minute and phones may run the old app for longer.
 
 ## Deploying
 
@@ -156,10 +162,48 @@ No stand had been opened, so no phone held unsynced sales. Moving to another
 address later (`band.krdm.si`) needs more care: IndexedDB and sign-ins are per
 address, so phones must sync before the old address goes away.
 
-```bash
-npm run db:migrate:remote                    # first, if there is a new migration
-npm run deploy                               # build + wrangler deploy
-```
+**CI deploys** (`.github/workflows/deploy.yml`, GitHub Actions). A push to
+`main` runs `npm run check`, applies new migrations to the production database
+and runs `wrangler deploy`; then it updates the `main` Preview (below). Every
+other branch gets its own Preview. Deleting a branch deletes its Preview (the
+Free plan allows 100 per Worker). The workflow needs the repository secret
+`CLOUDFLARE_API_TOKEN`: an account-owned token on the KRDM account with
+Workers Scripts: Edit and D1: Edit. By hand, only if CI can't
+(`npm run db:migrate:remote`, then `npm run deploy`).
+
+### Previews
+
+[Workers Previews](https://developers.cloudflare.com/workers/previews/) of the
+same Worker, at `https://<branch>-krdm-band.krdm.workers.dev` (lowercase, other
+characters become `-`, at most 40; `scripts/preview-name.sh`).
+**https://main-krdm-band.krdm.workers.dev** is the permanent one: what is on
+`main`, on preview data. Use it to try things, train people, or test with
+real phones without touching real stock, orders or money.
+
+- Previews take their bindings from `previews` in `wrangler.jsonc`, never from
+  the top level: the D1 database `krdm-band-preview` and the R2 bucket
+  `krdm-band-preview` (both Western Europe). **All Previews share them**, `main`
+  included, so a branch's migration lands there for everyone. If a branch's
+  migration breaks the others, reset the database (below). The deploy fails if
+  a Preview would bind the production database.
+- A new binding needs its pair in `previews` too; Previews inherit none.
+- Secrets: `IP_SALT` is in the Previews base config
+  (`wrangler preview base-config secret put IP_SALT`); new Previews copy it.
+- Logins are separate from production. Make one with
+  `node scripts/create-admin.mjs --name "…" --email … --preview`, then invite
+  others in the app. The app shows no banner on a Preview yet; check the
+  address before selling at a gig.
+- The preview database was filled on 2026-11-23 with the website's merch (the
+  import below, photos copied into `krdm-band-preview`), no customer data.
+  Don't copy production data into it. To start over: delete and recreate
+  `krdm-band-preview` (`wrangler d1 …`), put the new id in `wrangler.jsonc` and
+  `wrangler.preview-migrations.jsonc`, apply the migrations with
+  `npx wrangler d1 migrations apply DB --remote -c wrangler.preview-migrations.jsonc`,
+  and import again (`--remote -c wrangler.preview-migrations.jsonc` on the D1
+  command; point `build/import-images.sh` at `krdm-band-preview/`).
+- The preview bucket's uploads have their own budget in the preview
+  database (4 GB), on top of production's: the account's budget alert is the
+  backstop for both.
 
 One-time setup, done on 2026-11-23: `wrangler d1 create krdm-band --location weur`,
 `wrangler r2 bucket create krdm-media --location weur` (R2 commands need
