@@ -1,7 +1,8 @@
 # Brief: KRDM merch app
 
-Status: brief, written 2026-11-22. Nothing built yet. Items under "Open: with
-Aleš" need his agreement before they are built.
+Status: brief written 2026-11-22 in krdm-www and moved here. The first phase is
+being built in this repo; see "Built so far" and "Next" at the end. Items under
+"Open: with Aleš" need his agreement before they are built.
 
 ## Goal
 
@@ -49,17 +50,19 @@ Both admin roles are kept in this app, not in the login provider (see Login).
 - **The phone app is a PWA** (installable, works offline), in Slovenian and
   English.
 - **Hosting must be free at this scale.** Cloudflare Workers + D1 (SQLite)
-  + R2 (photos). Keep the schema plain SQLite and the server code a thin HTTP
-  API, so it can move to Bunny (Edge Scripting + Bunny Database, also
-  SQLite/libSQL) or elsewhere. The stack is chosen here, not by whoever builds
-  it.
+  + R2 (photos). **Cloudflare is the confirmed platform** (agreed with Aleš on
+  2026-11-22; the Plc app may move there too). Keep the schema plain SQLite and
+  the server code a thin HTTP API all the same, so it isn't tied to one host.
+  The stack is chosen here, not by whoever builds it: Hono on the Worker, React
+  with Mantine (a component library made for back offices) in the PWA.
+- **Email waits for Cloudflare's email sending**, which needs krdm.si's DNS on
+  Cloudflare. Until then notifications are in the app only.
 - **The app takes web orders; the Netlify `order` form is retired.** The
   cart submits to the app's API, and the app's notifications send the
   emails (see "Web orders" and "Notifications"). The contact form stays on
   Netlify Forms for now.
-- **Repo `krdm-merch`, address `merch.krdm.si`.** This brief moves there once
-  the repo exists. The website repo keeps only the client side: catalog
-  fetch, availability and checkout.
+- **Repo `krdm-merch`, address `merch.krdm.si`.** The website repo keeps only
+  the client side: catalog fetch, availability and checkout.
 - **First phase**: selling at gigs, inventory (with locations), web orders and
   products. Reports stay simple: per event, per product, per date range.
 
@@ -92,9 +95,9 @@ Both admin roles are kept in this app, not in the login provider (see Login).
   - `received`: a (re)print run, with its unit cost, which often differs
     between runs;
   - `moved`: from one location to another (packing and unpacking a box);
-  - `sold`;
-  - `reserved` / `released` / `shipped`: web orders;
-  - `given away`;
+  - `sold` (a giveaway is a sale at 0 €), and `returned` when a sale is undone;
+  - `reserved` / `released`: web orders. A reservation stays the stock change
+    when the order ships;
   - `counted`: the correction after a stock count.
 - **Cost of goods uses the moving average** of `received` unit costs: simple,
   and close enough.
@@ -117,7 +120,7 @@ Both admin roles are kept in this app, not in the login provider (see Login).
 ### Stands and sales
 
 - **Stand**: an event (name, date, place, optionally linked to the website's
-  event), its box(es), its sellers, the tiers and price overrides allowed
+  event), its box (one location per stand for now), its sellers, the tiers and price overrides allowed
   there, and the change float each seller brings.
 - **Sale**: items (product, size, quantity, tier, price, discount and reason),
   payment method (`cash`, `bank transfer`, `Flik`) and **who received the
@@ -178,11 +181,30 @@ The design is double-entry underneath and two numbers on the phone screen.
     location.
   - → `paid`: a transfer into the pot of the person who received the
     payment.
-  - → `shipped` or `picked up`: the reservation becomes a shipment.
+  - → `shipped` (which also covers picked up): the reservation becomes the
+    shipment.
   - `cancelled` releases the reservation.
 - **Shipping is recorded both ways**: what the customer was charged, and the
   postage actually paid (by whom). Shipping isn't any owner's money, so it is
   kept on the order, not in the owners' pots.
+- **Shipping at checkout** (decided 2026-11-22): the customer picks
+  - **pickup**: free;
+  - **Pošta Slovenije**: priced by weight. The items' weights plus 50 g of
+    packaging pick a class from Pošta's price list (valid from 1. 8. 2026); add
+    0.50 € for the packaging and round up to whole euros:
+
+    | Weight with packaging | Service | Pošta's price | Customer pays |
+    |---|---|---|---|
+    | up to 350 g | Pismo s sledenjem (tracked letter, goods allowed) | 3.05 € | 4 € |
+    | up to 1 kg | Pismo s sledenjem | 4.10 € | 5 € |
+    | up to 2 kg | Paket | 5.94 € | 7 € |
+    | up to 5 kg | Paket | 6.87 € | 8 € |
+    | up to 10 kg | Paket | 8.34 € | 9 € |
+
+    "Navadno pismo" and "Navadni paket" are out: Pošta allows only documents in
+    the first and nothing of commercial value in the second. All of these are
+    settings a label admin can change;
+  - **abroad**: the cost is quoted by hand on the order.
 - One order can hold several owners' items. One person handles it and
   collects the payment, and the transfers split it per owner automatically.
 - Orders can also be entered by hand (DMs, phone).
@@ -198,7 +220,8 @@ The design is double-entry underneath and two numbers on the phone screen.
 - **The order form is guarded against spam and abuse**, which Netlify used to
   do for us:
   - a honeypot field;
-  - a per-IP rate limit (a Workers rate-limiting binding);
+  - a per-IP rate limit (5 orders an hour, counted in D1 on a salted hash of
+    the IP, so it moves with the database);
   - prices, sizes and stock checked server-side;
   - an order-size cap.
 
@@ -217,12 +240,10 @@ The design is double-entry underneath and two numbers on the phone screen.
   manages their own subscriptions; admins set defaults for their band.
 - Every notification also appears in an in-app list. Email is the first
   delivery channel; web push to the installed PWA comes later.
-- **Sending email**: an API provider with krdm.si authenticated (SPF, DKIM
-  and DMARC records in krdm.si's DNS), for example Brevo's free plan, or
-  Cloudflare's email sending once the DNS is on Cloudflare. The sender is a
-  no-reply address. Customer emails set `Reply-To` to a monitored address of the
-  order's handler, or of the label admin. Plain SMTP from a Worker is not worth
-  it.
+- **Sending email**: Cloudflare's email sending (decided), once krdm.si's DNS
+  is on Cloudflare, with SPF, DKIM and DMARC for krdm.si. The sender is a
+  no-reply address. Customer emails set `Reply-To` to a monitored address of
+  the order's handler, or of the label admin.
 
 ## Offline
 
@@ -243,7 +264,9 @@ Venues often have no signal; a stand must work for a whole night without one.
   conflicts to resolve.
 - Sessions last about 30 days per device, so a signed-in phone keeps working
   offline and through login-provider outages.
-- A stand can be closed offline. The closing syncs later.
+- Closing a stand (the cash count, the box count) needs a connection for now.
+  Sales made offline upload whenever the phone is back online, also after
+  closing.
 
 ## Website
 
@@ -275,29 +298,29 @@ Venues often have no signal; a stand must work for a whole night without one.
 The goal is a shared login with the CMS and the Plc app, including people who
 have no Plc membership (merch-only sellers).
 
-Proposal: **plc.krdm.si signs people in; this app decides what they can do.**
+Direction (2026-11-22): Aleš agreed to move things to Cloudflare, and the Plc
+app may follow. So **KRDM's accounts should live in one small service on
+Cloudflare** that the merch app, the Plc app and the CMS (Turbo SSO) all sign
+in through, instead of on the Pi. That also removes the Pi's part of the CMS
+SSO plan, which needed php-xml the Pi doesn't have.
 
-- plc.krdm.si acts as an **OIDC** provider for this app: the Pi signs a JSON
-  token with `openssl_sign`, and the Worker verifies it. This is simpler on the
-  Pi than SAML, which is only needed for Turbo (because of Supabase's account
-  merging; see `cms-plc-sso-plan.md`). Note: the Pi has no php-xml, which the
-  SAML plan's signing routes need.
-- plc.krdm.si sends only identity (a stable id, name, email) and "may use the
-  merch app" (yes/no). Bands, stands and admin rights stay here, so label work
-  stays decoupled from the practice space.
-- **A merch-only account in Plc must not count as a member**: no fees, not in
-  member lists, key holders or presence, and a "no Plc pages" landing page.
-- An emailed sign-in link for the label admin as a fallback, so an outage of
-  the Pi never locks everyone out.
+- **Until that service exists, the merch app has its own accounts**: a label
+  admin adds a person and passes on a one-time link (the app sends no email
+  yet), where they set a password. Sessions last 30 days per device and slide
+  with use, so a phone keeps working offline and through outages.
+- `users.external_id` is there to link each account to the shared service
+  later.
+- The shared service decides only who someone is. Bands, stands and admin
+  rights stay in this app, so label work stays decoupled from the practice
+  space.
+- **A merch-only account must not count as a Plc member**: no fees, not in
+  member lists, key holders or presence.
 
 ### Open: with Aleš
 
-- Merch-only accounts in the Plc app, and the "not a member" flag. The Plc
-  repo's CLAUDE.md lists "anyone outside Plc" as not for now.
-- Whether plc.krdm.si becomes an OIDC provider (and SAML for Turbo), or
-  whether accounts move to a service on Cloudflare that both apps use. Moving
-  them is cleaner for uptime, but takes accounts off the Pi. Expect Aleš to
-  prefer keeping them there.
+- The shared accounts service: where it lives, who runs it, and when the Plc
+  app's accounts move into it.
+- Merch-only accounts in it, and the "not a member" flag for the Plc app.
 
 ## Hosting and domain
 
@@ -307,8 +330,7 @@ Proposal: **plc.krdm.si signs people in; this app decides what they can do.**
   - R2 holds the photos, served through the Worker.
 - **krdm.si's DNS is at Neoserv** (`ns59/ns60.neoserv.si`, mail on
   `mail.krdm.si`). Workers custom domains and R2 custom domains need the zone
-  on Cloudflare. Options:
-  The app's address is **`merch.krdm.si`**. Two ways to get it:
+  on Cloudflare. The app's address is **`merch.krdm.si`**. Two ways to get it:
   1. **Move krdm.si DNS to Cloudflare** (free). Copy every record, including MX
      for `mail.krdm.si`, before switching nameservers. The site needs this
      anyway if it moves to Cloudflare. This is the preferred route.
@@ -328,9 +350,42 @@ Proposal: **plc.krdm.si signs people in; this app decides what they can do.**
 - A legal entity: invoices, and possibly fiscal receipts (davčno potrjevanje
   računov).
 
-## Still to decide
+## Built so far
 
-- **Shipping choices at checkout.** Either fixed options with prices (pickup at
-  the Plc, Pošta Slovenije, …) shown in the cart, or "we'll tell you the
-  shipping cost" as today.
-- **Which email provider** sends the notifications.
+As of 2026-11-22, running locally (not deployed):
+
+- Sign-in with invite links and passwords; people, bands and the label, band
+  admins; price tiers and shipping settings.
+- Products with sizes, prices per tier, weights and photos (shrunk on the phone,
+  stored in R2).
+- Locations, stock as entries: receive a print run (with its cost, optionally
+  paid from a pot), move (pack and unpack a box), count, history.
+- Stands with sellers, floats, allowed tiers and prices for the event; selling
+  offline from a prepared snapshot, with an outbox that uploads when there's
+  signal; discounts and giveaways for admins; cash change, UPN QR for bank
+  transfers, Flik number; guardian sales; size colours; undoing a sale; cash
+  count at closing; flags for sales that broke a rule.
+- Money: pots, two-step handovers, stashes, expenses, payouts, corrections.
+- Web orders: the public API (catalog, availability, quote, order) with
+  shipping by weight, honeypot and rate limit; orders entered by hand; confirm,
+  paid, sent, cancel with stock and money following.
+- In-app notifications with subscriptions per band.
+- Reports per event, product, band or month for a date range.
+- `scripts/import-hugo.mjs`: the one-time import of the website's merch.
+
+## Next
+
+- **Box template** (from [merch-gig-box.md](merch-gig-box.md)): standard
+  contents per gig box, "pack to template", a closing count that asks only
+  what's missing, and the printable contents list with a QR code.
+- **Deploy**: create the D1 database and R2 bucket, set `IP_SALT`, run the
+  migrations and the import, create the first admin, and put the app on
+  `merch.krdm.si` (move the DNS to Cloudflare, or a Pages CNAME).
+- **Website switch-over** (krdm-www): catalog at build time, availability with
+  JS, checkout to the API, rebuild hook on product changes. It waits for email,
+  so customers get their confirmation and admins hear about new orders.
+- **Email**: customer emails and email notifications, once the DNS is on
+  Cloudflare.
+- Delete customers' contact details 12 months after an order is done (a cron
+  trigger); the "stand not synced 24 h after closing" notification; a limit on
+  failed sign-ins.

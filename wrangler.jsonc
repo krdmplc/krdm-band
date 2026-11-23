@@ -1,0 +1,30 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "krdm-merch",
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  // The PWA is served as static assets; the Worker only runs for the API and the
+  // product photos. Every other path falls back to index.html (client routing).
+  "assets": {
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/images/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "krdm-merch",
+      // Replace with the id printed by `wrangler d1 create krdm-merch` before the
+      // first deploy. Local development doesn't need a real one.
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [{ "binding": "IMAGES", "bucket_name": "krdm-merch-images" }],
+  "vars": {
+    // The app's own address, used in invite links.
+    "APP_URL": "https://merch.krdm.si"
+  }
+  // Secrets (wrangler secret put): IP_SALT — hashes customer IPs for the order rate limit.
+}
