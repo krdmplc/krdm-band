@@ -52,6 +52,30 @@ There are unit tests for the shared logic (`test/`); the API is checked end to
 end against the dev server. **Try what you change in a browser at phone width
 (390 px) and offline** (DevTools → Network → Offline) when it touches selling.
 
+## Git workflow (required)
+
+Several people and their agents work on this repo, and what is on `main` is what
+gets deployed. Nobody pushes to `main` directly; every change goes through a
+pull request. GitHub enforces this with a ruleset on `main`.
+
+1. Start each change from an up-to-date `main`: `git switch main && git pull`,
+   then `git switch -c <type>/<topic>` (`fix/stock-sync`, `feat/discounts`).
+   One branch per change.
+2. Never commit on `main`, push to `main`, force-push, or rewrite a branch
+   someone else pushed. Never merge your own PR. If you find you've made changes
+   on `main`, `git switch -c <branch>` before committing; the changes come with you.
+3. Before pushing, run `npm run check`. Don't push a branch that fails it.
+4. Push the branch and open a PR: `gh pr create --base main`. Title says what
+   changes; the body says why and how you checked it (including phone width and
+   offline, if it touches selling), and whether it adds a migration.
+5. Keep PRs small and on one topic. Don't reformat or "tidy" files you didn't
+   need to touch.
+6. Never run `npm run deploy`, `npm run db:migrate:remote`, `wrangler secret …`,
+   `wrangler d1 execute --remote`, or anything else that touches the Cloudflare
+   account. A maintainer migrates and deploys after merging.
+7. If something seems to need a change on `main`, the Cloudflare setup, or
+   secrets, stop and ask in the PR. Don't work around it.
+
 ## How it fits together
 
 - `src/worker/`: the API. `index.ts` mounts the routes; `lib/` holds auth,
@@ -170,4 +194,4 @@ later sections: [docs/band-app.md](docs/band-app.md) and
 ## Housekeeping
 
 - Don't commit `node_modules/`, `dist/`, `.wrangler/`, `build/` or `.dev.vars`.
-- Don't commit or push unless asked.
+- Commit and push only to your own branch; the PR is the hand-off.
