@@ -113,9 +113,10 @@ account (`account_id` in `wrangler.jsonc`). It runs at
 https://krdm-band.martinjagodic.workers.dev until `band.krdm.si` is needed;
 krdm.si's DNS moves to Cloudflare then (see the merch brief, "Hosting and
 domain"). Before the rename it ran as the Worker `krdm-merch` at
-https://krdm-merch.martinjagodic.workers.dev; delete that Worker once the phones
-have synced and everyone uses the new address (IndexedDB and sign-ins are per
-address, so unsynced sales on a phone stay at the old one).
+https://krdm-merch.martinjagodic.workers.dev, deleted on 2026-11-23 (no stand
+had been opened, so no phone held unsynced sales). Moving to another address
+later (`band.krdm.si`) needs the same care: IndexedDB and sign-ins are per
+address, so phones must sync before the old address goes away.
 
 ```bash
 npm run db:migrate:remote                    # first, if there is a new migration
