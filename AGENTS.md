@@ -18,8 +18,9 @@ don't build them here.
 
 The app was called "KRDM merch" until 2026-11-23. Some internal names keep
 "merch" on purpose, because changing them would lose data or sign people out:
-the D1 database `krdm-merch`, the R2 bucket `krdm-merch-images`, the IndexedDB
-`krdm-merch`, the `merch.*` localStorage keys and the `merch_session` cookie.
+the IndexedDB `krdm-merch`, the `merch.*` localStorage keys and the
+`merch_session` cookie. (The D1 database and R2 bucket were renamed when the app
+moved to the KRDM Cloudflare account; see Deploying.)
 
 Stack: **Cloudflare Workers** (one Worker: the API with Hono, the photos, and the
 PWA as static assets) + **D1** (SQLite) + **R2** (photos). The PWA is **React +
@@ -43,7 +44,7 @@ Importing the website's merch (once, into an empty database):
 
 ```bash
 node scripts/import-hugo.mjs ../krdm-www      # writes build/import.sql and build/import-images.sh
-npx wrangler d1 execute krdm-merch --local --file build/import.sql
+npx wrangler d1 execute krdm-band --local --file build/import.sql
 sh build/import-images.sh --local
 ```
 
@@ -107,15 +108,28 @@ are on, their own pots. A location's keeper may move and count its stock.
 
 ## Deploying
 
-The Worker (`krdm-band`), D1 database (`krdm-merch`, Western Europe) and R2
-bucket (`krdm-merch-images`) live in the "Martin Jagodic Personal" Cloudflare
-account (`account_id` in `wrangler.jsonc`). It runs at
-https://krdm-band.martinjagodic.workers.dev until `band.krdm.si` is needed;
-krdm.si's DNS moves to Cloudflare then (see the merch brief, "Hosting and
-domain"). Before the rename it ran as the Worker `krdm-merch` at
-https://krdm-merch.martinjagodic.workers.dev, deleted on 2026-11-23 (no stand
-had been opened, so no phone held unsynced sales). Moving to another address
-later (`band.krdm.si`) needs the same care: IndexedDB and sign-ins are per
+The Worker (`krdm-band`), D1 database (`krdm-band`, Western Europe) and R2
+bucket (`krdm-media`, Western Europe) live in the "KRDM" Cloudflare account
+(`account_id` in `wrangler.jsonc`), which the people running KRDM share with
+their own logins. It runs at https://krdm-band.krdm.workers.dev until
+`band.krdm.si` is needed; krdm.si's DNS moves to Cloudflare then (see the merch
+brief, "Hosting and domain").
+
+`krdm-media` is **KRDM's shared media bucket**: the website's CMS (Decap Turbo,
+through R2's S3 API) will upload there too. This app writes only under
+`products/` and `imported/` and must never delete outside them; the website
+references merch photos by their keys.
+
+History: it first ran in the "Martin Jagodic Personal" account as the Worker
+`krdm-merch` (renamed `krdm-band` the same day) with the D1 database `krdm-merch`
+and the bucket `krdm-merch-images`. On 2026-11-23 it moved to the KRDM account:
+the database was exported and imported whole (accounts, products, stock), the
+photos copied with their keys, and the old Worker, database and bucket deleted.
+Gotcha learned doing it: inside this folder Wrangler takes the account from
+`wrangler.jsonc` and ignores `CLOUDFLARE_ACCOUNT_ID`, so run commands aimed at
+another account from a folder without a Wrangler config.
+No stand had been opened, so no phone held unsynced sales. Moving to another
+address later (`band.krdm.si`) needs more care: IndexedDB and sign-ins are per
 address, so phones must sync before the old address goes away.
 
 ```bash
@@ -123,12 +137,12 @@ npm run db:migrate:remote                    # first, if there is a new migratio
 npm run deploy                               # build + wrangler deploy
 ```
 
-One-time setup, done on 2026-11-23: `wrangler d1 create krdm-merch --location weur`,
-`wrangler r2 bucket create krdm-merch-images --location weur` (R2 commands need
+One-time setup, done on 2026-11-23: `wrangler d1 create krdm-band --location weur`,
+`wrangler r2 bucket create krdm-media --location weur` (R2 commands need
 `CLOUDFLARE_ACCOUNT_ID` set), `wrangler secret put IP_SALT` (a long random
-string), and the website's merch imported with `scripts/import-hugo.mjs`. The
-first account: `node scripts/create-admin.mjs --name "…" --email … --remote --url
-https://krdm-band.martinjagodic.workers.dev`. Don't commit secrets; `.dev.vars`
+string), and the data imported as described above. A new admin account:
+`node scripts/create-admin.mjs --name "…" --email … --remote --url
+https://krdm-band.krdm.workers.dev`. Don't commit secrets; `.dev.vars`
 is ignored.
 
 ## It must cost nothing
@@ -142,7 +156,9 @@ Worker, which the Workers limit keeps far below R2's free reads. Don't add a
 path that reads or writes R2 without going through those limits, don't serve the
 bucket publicly (an `r2.dev` URL or a custom domain on it bypasses the Worker),
 and don't move the account to Workers Paid. A budget alert on the account emails
-on any spend (Billing → Billable Usage).
+on any spend (Billing → Billable Usage). The budget counts only this app's
+uploads; the website's CMS writes to the same bucket outside it, so the alert is
+the backstop for both.
 
 ## Not built yet
 

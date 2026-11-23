@@ -366,7 +366,8 @@ SSO plan, which needed php-xml the Pi doesn't have.
 Deployed on 2026-11-23 at https://krdm-merch.martinjagodic.workers.dev, renamed
 the same day to https://krdm-band.martinjagodic.workers.dev (the
 "Martin Jagodic Personal" Cloudflare account, data in Western Europe), with the
-website's merch imported:
+website's merch imported. Moved the same day, data and all, to the shared "KRDM"
+account at https://krdm-band.krdm.workers.dev:
 
 - Sign-in with invite links and passwords; people, bands and the label, band
   admins; price tiers and shipping settings.

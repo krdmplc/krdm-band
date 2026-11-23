@@ -5,7 +5,7 @@
 // already exist are left alone.
 //
 //   node scripts/import-hugo.mjs ../krdm-www
-//   npx wrangler d1 execute krdm-merch --local --file build/import.sql
+//   npx wrangler d1 execute krdm-band --local --file build/import.sql
 //   sh build/import-images.sh --local          (or --remote, for both)
 //
 // Mapping:
@@ -116,7 +116,7 @@ writeFileSync('build/import-images.sh', [
   '#!/bin/sh',
   '# Copies the imported photos into R2. Pass --local or --remote.',
   'set -e',
-  ...images.map(({ key, local }) => `npx wrangler r2 object put ${q(`krdm-merch-images/${key}`)} --file ${q(local)} --content-type ${contentType(local)} "$1"`)
+  ...images.map(({ key, local }) => `npx wrangler r2 object put ${q(`krdm-media/${key}`)} --file ${q(local)} --content-type ${contentType(local)} "$1"`)
 ].join('\n') + '\n')
 
 console.log(`Products: ${report.products}, photos: ${report.photos}, pieces of stock: ${report.pieces}`)

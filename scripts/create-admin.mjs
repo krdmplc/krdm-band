@@ -35,5 +35,5 @@ const sql = [
     `INSERT INTO subscriptions (user_id, topic, owner_id) VALUES (${q(id)}, ${q(t)}, '*')`)
 ].join('; ')
 
-execFileSync('npx', ['wrangler', 'd1', 'execute', 'krdm-merch', values.remote ? '--remote' : '--local', '--command', sql], { stdio: 'inherit' })
+execFileSync('npx', ['wrangler', 'd1', 'execute', 'krdm-band', values.remote ? '--remote' : '--local', '--command', sql], { stdio: 'inherit' })
 console.log(`\nSet the password here (valid 14 days):\n${values.url}/invite/${token}\n`)
