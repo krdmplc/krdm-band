@@ -26,6 +26,28 @@
   ],
   // KRDM's shared media bucket: the website's CMS uploads to it too, so this app
   // keeps to its own prefixes (`products/`, `imported/`) and never deletes outside them.
-  "r2_buckets": [{ "binding": "IMAGES", "bucket_name": "krdm-media" }]
+  "r2_buckets": [{ "binding": "IMAGES", "bucket_name": "krdm-media" }],
   // Secrets (wrangler secret put): IP_SALT — hashes customer IPs for the order rate limit.
+
+  // Production at https://krdm-band.krdm.workers.dev; Previews (see below) at
+  // https://<name>-krdm-band.krdm.workers.dev.
+  "workers_dev": true,
+  "preview_urls": true,
+  // Workers Previews (`wrangler preview --name <branch>`, run by
+  // .github/workflows/deploy.yml): every branch, and `main` itself as the permanent
+  // https://main-krdm-band.krdm.workers.dev, runs on its own database and bucket so
+  // nothing done there touches real stock, orders or photos. All Previews share them.
+  // Previews inherit no bindings, so every binding above needs its pair here.
+  // Secrets: `wrangler preview base-config secret put IP_SALT` (new Previews copy it).
+  "previews": {
+    "d1_databases": [
+      {
+        "binding": "DB",
+        // Created 2026-11-23 (weur). Migrated through wrangler.preview-migrations.jsonc.
+        "database_name": "krdm-band-preview",
+        "database_id": "d2bd0cb3-dab7-47e2-ae91-2a5868333e5c"
+      }
+    ],
+    "r2_buckets": [{ "binding": "IMAGES", "bucket_name": "krdm-band-preview" }]
+  }
 }

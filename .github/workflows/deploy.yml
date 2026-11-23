@@ -1,0 +1,156 @@
+name: Deploy
+
+# Production and Previews of the Worker `krdm-band` in the KRDM Cloudflare account.
+#
+# - Push to main: checks, migrates the production database, deploys
+#   https://krdm-band.krdm.workers.dev, then updates the permanent `main` Preview,
+#   https://main-krdm-band.krdm.workers.dev (main's code on the preview database).
+# - Push to any other branch: checks, migrates the preview database and deploys
+#   the branch's Preview, https://<branch>-krdm-band.krdm.workers.dev, and keeps one
+#   comment on the branch's open pull request pointing at it.
+# - Pull request opened: comments the link straight away.
+# - Branch deleted: deletes its Preview (a Worker may have 100 on the Free plan).
+#
+# Previews get their database and bucket from `previews` in wrangler.jsonc; all of
+# them share one database, separate from production.
+# Needs the repository secret CLOUDFLARE_API_TOKEN: an account-owned token on the
+# KRDM account with Workers Scripts: Edit and D1: Edit.
+
+on:
+  push:
+  pull_request:
+    types: [opened, reopened]
+  delete:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  COMMENT_MARKER: '<!-- krdm-band-preview -->'
+
+jobs:
+  deploy:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: write
+    # One run per branch at a time, never cancelled half-way through a migration.
+    concurrency:
+      group: deploy-${{ github.ref }}
+      cancel-in-progress: false
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Check that the token is there
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::error::The CLOUDFLARE_API_TOKEN repository secret is not set"
+            exit 1
+          fi
+
+      # Typecheck, tests and the build that is deployed (dist/).
+      - run: npm run check
+
+      - name: Migrate the production database
+        if: github.ref_name == 'main'
+        run: npx wrangler d1 migrations apply DB --remote -c wrangler.jsonc
+
+      - name: Deploy production
+        if: github.ref_name == 'main'
+        run: npx wrangler deploy --message "${GITHUB_SHA::7}"
+
+      # All Previews share this database, so a branch's new migration is applied
+      # here before its code runs. See "Previews" in AGENTS.md.
+      - name: Migrate the preview database
+        run: npx wrangler d1 migrations apply DB --remote -c wrangler.preview-migrations.jsonc
+
+      - name: Deploy the Preview
+        id: preview
+        run: |
+          set -o pipefail
+          name=$(sh scripts/preview-name.sh "$GITHUB_REF_NAME")
+          # Wrangler logs to stdout before the JSON; keep the JSON only.
+          npx wrangler preview --name "$name" --message "${GITHUB_SHA::7}" --json \
+            | sed -n '/^{/,$p' > "$RUNNER_TEMP/preview.json"
+          url=$(jq -er '.preview.urls[0]' "$RUNNER_TEMP/preview.json")
+          commit_url=$(jq -r '.deployment.urls[0] // empty' "$RUNNER_TEMP/preview.json")
+          db=$(jq -r '.deployment.env.DB.database_id // empty' "$RUNNER_TEMP/preview.json")
+          # A Preview must never run on the production database.
+          if [ "$db" = "5b04d7ed-adbc-4bb3-8a16-79fc4d1137cc" ]; then
+            echo "::error::The Preview is bound to the production database; check previews in wrangler.jsonc"
+            exit 1
+          fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "commit_url=$commit_url" >> "$GITHUB_OUTPUT"
+          echo "### Preview: $url" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comment on the pull request
+        if: github.ref_name != 'main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          URL: ${{ steps.preview.outputs.url }}
+          COMMIT_URL: ${{ steps.preview.outputs.commit_url }}
+        run: |
+          body=$(printf '%s\n**Preview:** %s\n\nThis commit (%s): %s\n\nRuns on the preview database, which all Previews share with %s, never on production data.\n' \
+            "$COMMENT_MARKER" "$URL" "${GITHUB_SHA::7}" "$COMMIT_URL" "https://main-krdm-band.krdm.workers.dev")
+          for pr in $(gh pr list -R "$GITHUB_REPOSITORY" --head "$GITHUB_REF_NAME" --state open --json number --jq '.[].number'); do
+            sh scripts/upsert-comment.sh "$pr" "$body"
+          done
+
+  # Links the Preview as soon as a pull request opens, if its branch was pushed
+  # before. The deploy job updates the comment on every push after that.
+  comment:
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.head_ref }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          url="https://$(sh scripts/preview-name.sh "$BRANCH")-krdm-band.krdm.workers.dev"
+          body=$(printf '%s\n**Preview:** %s\n\nUpdated on every push to `%s` (see the Deploy workflow). Runs on the preview database, never on production data.\n' \
+            "$COMMENT_MARKER" "$url" "$BRANCH")
+          # Don't overwrite a comment the deploy job already wrote with more detail.
+          sh scripts/upsert-comment.sh "$PR" "$body" --keep
+
+  cleanup:
+    if: github.event_name == 'delete' && github.event.ref_type == 'branch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Delete the Preview
+        env:
+          BRANCH: ${{ github.event.ref }}
+        run: |
+          name=$(sh scripts/preview-name.sh "$BRANCH")
+          if [ "$name" = main ]; then exit 0; fi
+          npx wrangler preview delete --name "$name" --skip-confirmation \
+            || echo "::warning::No Preview $name to delete"
