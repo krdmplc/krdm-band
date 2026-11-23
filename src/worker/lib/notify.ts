@@ -1,5 +1,5 @@
 // In-app notifications. Email delivery comes with Cloudflare's email sending,
-// once krdm.si's DNS is on Cloudflare (docs/brief.md, Notifications).
+// once krdm.si's DNS is on Cloudflare (docs/merch-app-brief.md, Notifications).
 //
 // Topics people subscribe to, per owner or for all ('*'):
 //   order.new       a web or manual order with that owner's items

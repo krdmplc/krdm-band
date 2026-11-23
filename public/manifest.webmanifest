@@ -1,7 +1,7 @@
 {
-  "name": "KRDM merch",
-  "short_name": "Merch",
-  "description": "Prodaja mercha bendov KRDM: stojnice, zaloga, naročila in denar.",
+  "name": "KRDM band",
+  "short_name": "KRDM band",
+  "description": "Za bende in založbo KRDM: merch, izdaje, koncerti in denar.",
   "lang": "sl",
   "start_url": "/",
   "scope": "/",

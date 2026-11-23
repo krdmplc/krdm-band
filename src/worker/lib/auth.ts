@@ -1,5 +1,5 @@
 // Accounts live in this app until KRDM has a shared accounts service (see
-// docs/brief.md, Login). Passwords are set through one-time invite links that an
+// docs/band-app.md, Login). Passwords are set through one-time invite links that an
 // admin passes on by hand, because the app sends no email yet.
 
 import type { MiddlewareHandler } from 'hono'

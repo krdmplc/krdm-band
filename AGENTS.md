@@ -1,10 +1,25 @@
 # AGENTS.md
 
-Guidance for AI coding agents (and humans) working on **KRDM merch**, the back
-office for selling the merch of KRDM's bands and label: at gigs (often without
-signal), from home stock, and through orders from the website (krdm.si). What
-it is for and why it is shaped this way: [docs/merch-app-brief.md](docs/merch-app-brief.md).
-The physical gig box the stands follow: [docs/merch-gig-box.md](docs/merch-gig-box.md).
+Guidance for AI coding agents (and humans) working on **KRDM band**
+(band.krdm.si), the back office of KRDM's bands and label. It is one app with
+sections that share people, bands (`owners`) and logins:
+
+- **Merch** (built): selling at gigs (often without signal), from home stock,
+  and through orders from the website (krdm.si).
+  [docs/merch-app-brief.md](docs/merch-app-brief.md); the physical gig box the
+  stands follow: [docs/merch-gig-box.md](docs/merch-gig-box.md).
+- **Music** (next): releases, platforms, stats, rights.
+  [docs/music-brief.md](docs/music-brief.md).
+- The whole app, its later sections and its login:
+  [docs/band-app.md](docs/band-app.md).
+
+The practice space, gear and rehearsal dates are the Plc app's (plc.krdm.si);
+don't build them here.
+
+The app was called "KRDM merch" until 2026-11-23. Some internal names keep
+"merch" on purpose, because changing them would lose data or sign people out:
+the D1 database `krdm-merch`, the R2 bucket `krdm-merch-images`, the IndexedDB
+`krdm-merch`, the `merch.*` localStorage keys and the `merch_session` cookie.
 
 Stack: **Cloudflare Workers** (one Worker: the API with Hono, the photos, and the
 PWA as static assets) + **D1** (SQLite) + **R2** (photos). The PWA is **React +
@@ -92,11 +107,15 @@ are on, their own pots. A location's keeper may move and count its stock.
 
 ## Deploying
 
-The Worker, D1 database (`krdm-merch`, Western Europe) and R2 bucket
-(`krdm-merch-images`) live in the "Martin Jagodic Personal" Cloudflare account
-(`account_id` in `wrangler.jsonc`). It runs at
-https://krdm-merch.martinjagodic.workers.dev until `merch.krdm.si` is needed;
-krdm.si's DNS moves to Cloudflare then (see the brief, "Hosting and domain").
+The Worker (`krdm-band`), D1 database (`krdm-merch`, Western Europe) and R2
+bucket (`krdm-merch-images`) live in the "Martin Jagodic Personal" Cloudflare
+account (`account_id` in `wrangler.jsonc`). It runs at
+https://krdm-band.martinjagodic.workers.dev until `band.krdm.si` is needed;
+krdm.si's DNS moves to Cloudflare then (see the merch brief, "Hosting and
+domain"). Before the rename it ran as the Worker `krdm-merch` at
+https://krdm-merch.martinjagodic.workers.dev; delete that Worker once the phones
+have synced and everyone uses the new address (IndexedDB and sign-ins are per
+address, so unsynced sales on a phone stay at the old one).
 
 ```bash
 npm run db:migrate:remote                    # first, if there is a new migration
@@ -108,7 +127,7 @@ One-time setup, done on 2026-11-23: `wrangler d1 create krdm-merch --location we
 `CLOUDFLARE_ACCOUNT_ID` set), `wrangler secret put IP_SALT` (a long random
 string), and the website's merch imported with `scripts/import-hugo.mjs`. The
 first account: `node scripts/create-admin.mjs --name "…" --email … --remote --url
-https://krdm-merch.martinjagodic.workers.dev`. Don't commit secrets; `.dev.vars`
+https://krdm-band.martinjagodic.workers.dev`. Don't commit secrets; `.dev.vars`
 is ignored.
 
 ## It must cost nothing
@@ -126,8 +145,10 @@ on any spend (Billing → Billable Usage).
 
 ## Not built yet
 
-See the end of the brief ("Next"): box templates, deployment, the website
-switch-over (in krdm-www), email, data retention for orders.
+Merch: see the end of its brief ("Next"): box templates, the website
+switch-over (in krdm-www), email, data retention for orders. Music and the
+later sections: [docs/band-app.md](docs/band-app.md) and
+[docs/music-brief.md](docs/music-brief.md).
 
 ## Housekeeping
 

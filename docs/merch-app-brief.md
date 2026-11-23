@@ -1,4 +1,7 @@
-# Brief: KRDM merch app
+# Brief: KRDM band, the Merch section
+
+This is the Merch section of KRDM band (called "KRDM merch" until
+2026-11-23); the whole app is described in [band-app.md](band-app.md).
 
 Status: brief written 2026-11-22 in krdm-www and moved here. The first phase is
 being built in this repo; see "Built so far" and "Next" at the end. Items under
@@ -64,7 +67,7 @@ Both admin roles are kept in this app, not in the login provider (see Login).
   cart submits to the app's API, and the app's notifications send the
   emails (see "Web orders" and "Notifications"). The contact form stays on
   Netlify Forms for now.
-- **Repo `krdm-merch`, address `merch.krdm.si`.** The website repo keeps only
+- **Repo `krdm-band` (was `krdm-merch`), address `band.krdm.si`.** The website repo keeps only
   the client side: catalog fetch, availability and checkout.
 - **First phase**: selling at gigs, inventory (with locations), web orders and
   products. Reports stay simple: per event, per product, per date range.
@@ -298,6 +301,10 @@ Venues often have no signal; a stand must work for a whole night without one.
 
 ## Login
 
+The login is shared by every section of the app; the current plan is in
+[band-app.md](band-app.md), "Login". What follows is how it was decided for
+merch.
+
 The goal is a shared login with the CMS and the Plc app, including people who
 have no Plc membership (merch-only sellers).
 
@@ -333,12 +340,13 @@ SSO plan, which needed php-xml the Pi doesn't have.
   - R2 holds the photos, served through the Worker.
 - **krdm.si's DNS is at Neoserv** (`ns59/ns60.neoserv.si`, mail on
   `mail.krdm.si`). Workers custom domains and R2 custom domains need the zone
-  on Cloudflare. The app's address is **`merch.krdm.si`**. Two ways to get it:
+  on Cloudflare. The app's address is **`band.krdm.si`** (decided 2026-11-23; it was going to
+  be `merch.krdm.si`). Two ways to get it:
   1. **Move krdm.si DNS to Cloudflare** (free). Copy every record, including MX
      for `mail.krdm.si`, before switching nameservers. The site needs this
      anyway if it moves to Cloudflare. This is the preferred route.
   2. Keep DNS at Neoserv and deploy the app as a Cloudflare Pages project with
-     Functions (same D1/R2 bindings). It accepts a CNAME `merch` →
+     Functions (same D1/R2 bindings). It accepts a CNAME `band` →
      `<project>.pages.dev` from Neoserv's DNS.
 
   During development, use a `*.workers.dev` URL. The website only needs the
@@ -355,7 +363,8 @@ SSO plan, which needed php-xml the Pi doesn't have.
 
 ## Built so far
 
-Deployed on 2026-11-23 at https://krdm-merch.martinjagodic.workers.dev (the
+Deployed on 2026-11-23 at https://krdm-merch.martinjagodic.workers.dev, renamed
+the same day to https://krdm-band.martinjagodic.workers.dev (the
 "Martin Jagodic Personal" Cloudflare account, data in Western Europe), with the
 website's merch imported:
 
@@ -383,7 +392,7 @@ website's merch imported:
 - **Box template** (from [merch-gig-box.md](merch-gig-box.md)): standard
   contents per gig box, "pack to template", a closing count that asks only
   what's missing, and the printable contents list with a QR code.
-- **`merch.krdm.si`**: move krdm.si's DNS to Cloudflare when the address is
+- **`band.krdm.si`**: move krdm.si's DNS to Cloudflare when the address is
   needed (decided: no Pages CNAME workaround).
 - **Website switch-over** (krdm-www): catalog at build time, availability with
   JS, checkout to the API, rebuild hook on product changes. It waits for email,

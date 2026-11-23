@@ -37,7 +37,7 @@ export function Login () {
   })
   const submit = (e: FormEvent) => { e.preventDefault(); login.mutate() }
   return (
-    <Frame title="KRDM merch">
+    <Frame title="KRDM band">
       <form onSubmit={submit}>
         <Stack>
           <TextInput label={t('E-naslov', 'Email')} type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.currentTarget.value)} />

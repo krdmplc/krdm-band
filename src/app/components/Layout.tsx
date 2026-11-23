@@ -56,7 +56,7 @@ export function Layout () {
             <UnstyledButton component={Link} to="/">
               <Group gap={8} wrap="nowrap">
                 <img src={mark} alt="KRDM" height={30} style={{ filter: scheme === 'light' ? 'invert(1)' : 'none' }} />
-                <Text ff="heading" size="xl">merch</Text>
+                <Text ff="heading" size="xl">band</Text>
               </Group>
             </UnstyledButton>
           </Group>

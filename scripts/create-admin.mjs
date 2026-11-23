@@ -3,7 +3,7 @@
 // the first account; after that, admins invite people in the app.
 //
 //   node scripts/create-admin.mjs --name "Ime Priimek" --email ime@example.com
-//   node scripts/create-admin.mjs --name … --email … --remote --url https://merch.krdm.si
+//   node scripts/create-admin.mjs --name … --email … --remote --url https://band.krdm.si
 
 import { execFileSync } from 'node:child_process'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
@@ -18,7 +18,7 @@ const { values } = parseArgs({
   }
 })
 if (!values.name || !values.email) {
-  console.error('Usage: node scripts/create-admin.mjs --name "Name" --email you@example.com [--remote --url https://merch.krdm.si]')
+  console.error('Usage: node scripts/create-admin.mjs --name "Name" --email you@example.com [--remote --url https://band.krdm.si]')
   process.exit(1)
 }
 
