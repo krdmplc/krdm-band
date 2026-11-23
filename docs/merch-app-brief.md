@@ -355,7 +355,7 @@ SSO plan, which needed php-xml the Pi doesn't have.
 
 ## Built so far
 
-Deployed on 2026-11-23 at https://krdm-merch.jagodicmartin1.workers.dev (the
+Deployed on 2026-11-23 at https://krdm-merch.martinjagodic.workers.dev (the
 "Martin Jagodic Personal" Cloudflare account, data in Western Europe), with the
 website's merch imported:
 

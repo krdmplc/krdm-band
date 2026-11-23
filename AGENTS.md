@@ -95,7 +95,7 @@ are on, their own pots. A location's keeper may move and count its stock.
 The Worker, D1 database (`krdm-merch`, Western Europe) and R2 bucket
 (`krdm-merch-images`) live in the "Martin Jagodic Personal" Cloudflare account
 (`account_id` in `wrangler.jsonc`). It runs at
-https://krdm-merch.jagodicmartin1.workers.dev until `merch.krdm.si` is needed;
+https://krdm-merch.martinjagodic.workers.dev until `merch.krdm.si` is needed;
 krdm.si's DNS moves to Cloudflare then (see the brief, "Hosting and domain").
 
 ```bash
@@ -108,7 +108,7 @@ One-time setup, done on 2026-11-23: `wrangler d1 create krdm-merch --location we
 `CLOUDFLARE_ACCOUNT_ID` set), `wrangler secret put IP_SALT` (a long random
 string), and the website's merch imported with `scripts/import-hugo.mjs`. The
 first account: `node scripts/create-admin.mjs --name "…" --email … --remote --url
-https://krdm-merch.jagodicmartin1.workers.dev`. Don't commit secrets; `.dev.vars`
+https://krdm-merch.martinjagodic.workers.dev`. Don't commit secrets; `.dev.vars`
 is ignored.
 
 ## It must cost nothing
