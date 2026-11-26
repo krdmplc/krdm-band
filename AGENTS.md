@@ -141,9 +141,10 @@ are on, their own pots. A location's keeper may move and count its stock.
 The Worker (`krdm-band`), D1 database (`krdm-band`, Western Europe) and R2
 bucket (`krdm-media`, Western Europe) live in the "KRDM" Cloudflare account
 (`account_id` in `wrangler.jsonc`), which the people running KRDM share with
-their own logins. It runs at https://krdm-band.krdm.workers.dev until
-`band.krdm.si` is needed; krdm.si's DNS moves to Cloudflare then (see the merch
-brief, "Hosting and domain").
+their own logins, and which holds krdm.si's DNS since 2026-11-26. It runs at
+**https://band.krdm.si** (a Workers Custom Domain, attached outside
+`wrangler.jsonc` because the CI token has no zone permissions) and still at
+https://krdm-band.krdm.workers.dev.
 
 `krdm-media` is **KRDM's shared media bucket**: the website's CMS (Decap Turbo,
 through R2's S3 API) will upload there too. This app writes only under
@@ -158,9 +159,10 @@ photos copied with their keys, and the old Worker, database and bucket deleted.
 Gotcha learned doing it: inside this folder Wrangler takes the account from
 `wrangler.jsonc` and ignores `CLOUDFLARE_ACCOUNT_ID`, so run commands aimed at
 another account from a folder without a Wrangler config.
-No stand had been opened, so no phone held unsynced sales. Moving to another
-address later (`band.krdm.si`) needs more care: IndexedDB and sign-ins are per
-address, so phones must sync before the old address goes away.
+No stand had been opened, so no phone held unsynced sales. IndexedDB and
+sign-ins are per address, so the workers.dev address stays on until everyone
+has moved to band.krdm.si and every phone has synced there; only then turn
+`workers_dev` off.
 
 **CI deploys** (`.github/workflows/deploy.yml`, GitHub Actions). A push to
 `main` runs `npm run check`, applies new migrations to the production database
@@ -210,7 +212,7 @@ One-time setup, done on 2026-11-23: `wrangler d1 create krdm-band --location weu
 `CLOUDFLARE_ACCOUNT_ID` set), `wrangler secret put IP_SALT` (a long random
 string), and the data imported as described above. A new admin account:
 `node scripts/create-admin.mjs --name "…" --email … --remote --url
-https://krdm-band.krdm.workers.dev`. Don't commit secrets; `.dev.vars`
+https://band.krdm.si`. Don't commit secrets; `.dev.vars`
 is ignored.
 
 ## It must cost nothing

@@ -2,7 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "krdm-band",
   // The "KRDM" Cloudflare account, shared by the people who run KRDM (not anyone's
-  // personal account). krdm.si's DNS moves here when band.krdm.si is needed.
+  // personal account), which also holds krdm.si's DNS (since 2026-11-26).
   "account_id": "2264e0f180a5de9805616b23d0d3b6d0",
   "main": "src/worker/index.ts",
   "compatibility_date": "2026-11-01",
@@ -29,8 +29,12 @@
   "r2_buckets": [{ "binding": "IMAGES", "bucket_name": "krdm-media" }],
   // Secrets (wrangler secret put): IP_SALT — hashes customer IPs for the order rate limit.
 
-  // Production at https://krdm-band.krdm.workers.dev; Previews (see below) at
-  // https://<name>-krdm-band.krdm.workers.dev.
+  // Production at https://band.krdm.si and https://krdm-band.krdm.workers.dev;
+  // Previews (see below) at https://<name>-krdm-band.krdm.workers.dev.
+  // band.krdm.si is a Workers Custom Domain attached in the dashboard/API, not in
+  // `routes` here: the CI token has no zone permissions, and `wrangler deploy`
+  // leaves a domain it doesn't list alone. Keep workers.dev on until every phone
+  // has synced at band.krdm.si (IndexedDB and sign-ins are per address).
   "workers_dev": true,
   "preview_urls": true,
   // Workers Previews (`wrangler preview --name <branch>`, run by
