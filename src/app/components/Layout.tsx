@@ -5,7 +5,7 @@ import {
 import { useDisclosure, useNetwork } from '@mantine/hooks'
 import {
   IconBell, IconBoxSeam, IconBuildingStore, IconCash, IconChartBar, IconCloudOff, IconCloudUpload, IconCoin, IconHome,
-  IconLogout, IconMicrophone2, IconMoon, IconSettings, IconShirt, IconSun, IconTruckDelivery, IconUser, IconUsers
+  IconLogout, IconMail, IconMicrophone2, IconMoon, IconSettings, IconShirt, IconSun, IconTruckDelivery, IconUser, IconUsers
 } from '@tabler/icons-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -35,6 +35,7 @@ export function Layout () {
     { to: '/sell', label: t('Prodaja', 'Sell'), icon: IconCash, show: true },
     { to: '/stands', label: t('Stojnice', 'Stands'), icon: IconBuildingStore, show: admin },
     { to: '/orders', label: t('Naročila', 'Orders'), icon: IconTruckDelivery, show: admin },
+    { to: '/messages', label: t('Sporočila', 'Messages'), icon: IconMail, show: me.isLabelAdmin },
     { to: '/products', label: t('Izdelki', 'Products'), icon: IconShirt, show: admin },
     { to: '/stock', label: t('Zaloga', 'Stock'), icon: IconBoxSeam, show: true },
     { to: '/money', label: t('Denar', 'Money'), icon: IconCoin, show: true },

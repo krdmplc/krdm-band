@@ -7,7 +7,7 @@ import { useT } from '../i18n'
 import { canAdmin, useMe, useSession } from '../session'
 import { ErrorNote, PageHeader, useOwners, useToast } from '../ui'
 
-const TOPICS = ['order.new', 'stock.negative', 'sale.flagged'] as const
+const TOPICS = ['order.new', 'stock.negative', 'sale.flagged', 'contact.new'] as const
 
 export function Profile () {
   const t = useT()
@@ -82,14 +82,18 @@ function Subscriptions () {
   const names: Record<string, string> = {
     'order.new': t('Novo naročilo', 'New order'),
     'stock.negative': t('Zaloga pod ničlo', 'Stock below zero'),
-    'sale.flagged': t('Prodaja z opozorilom', 'Flagged sale')
+    'sale.flagged': t('Prodaja z opozorilom', 'Flagged sale'),
+    'contact.new': t('Sporočilo s spletne strani', 'Website message')
   }
   const rows = [{ id: '*', name: t('Vsi bendi', 'All bands') }, ...(owners.data ?? []).filter((o) => canAdmin(me, o.id))]
   const toggle = (key: string) => setSet((s) => { const n = new Set(s); if (n.has(key)) n.delete(key); else n.add(key); return n })
   return (
     <Card>
       <Title order={4} mb="xs">{t('Obvestila', 'Notifications')}</Title>
-      <Text size="xs" c="dimmed" mb="xs">{t('Zaenkrat samo v aplikaciji; e-pošta pride pozneje.', 'In the app for now; email comes later.')}</Text>
+      <Text size="xs" c="dimmed" mb="xs">{t(
+        'V aplikaciji. Nova naročila in sporočila s spletne strani pridejo tudi po e-pošti, na naslov, s katerim se prijaviš, ko je ta potrjen v Cloudflaru (enkrat dobiš povezavo za potrditev).',
+        'In the app. New orders and website messages also come by email, to the address you sign in with, once it is verified in Cloudflare (you get a one-time link to confirm it).'
+      )}</Text>
       <Table>
         <Table.Thead>
           <Table.Tr><Table.Th />{TOPICS.map((topic) => <Table.Th key={topic}><Text size="xs">{names[topic]}</Text></Table.Th>)}</Table.Tr>
@@ -99,7 +103,11 @@ function Subscriptions () {
             <Table.Tr key={o.id}>
               <Table.Td>{o.name}</Table.Td>
               {TOPICS.map((topic) => (
-                <Table.Td key={topic}><Checkbox checked={set.has(`${topic}|${o.id}`)} onChange={() => toggle(`${topic}|${o.id}`)} aria-label={`${o.name}: ${names[topic]}`} /></Table.Td>
+                <Table.Td key={topic}>
+                  {/* Website messages aren't a band's: one switch, for label admins. */}
+                  {(topic !== 'contact.new' || (o.id === '*' && me.isLabelAdmin)) &&
+                    <Checkbox checked={set.has(`${topic}|${o.id}`)} onChange={() => toggle(`${topic}|${o.id}`)} aria-label={`${o.name}: ${names[topic]}`} />}
+                </Table.Td>
               ))}
             </Table.Tr>
           ))}

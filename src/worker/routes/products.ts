@@ -36,6 +36,8 @@ const productInput = z.object({
   link: z.url().nullable(),
   release: z.string().trim().max(80).nullable(),
   weightG: z.number().int().min(0).max(30000),
+  sort: z.number().int().min(0).max(100000).default(0),
+  artists: z.array(z.string().trim().regex(/^[a-z0-9-]+$/).max(80)).max(30).default([]),
   published: z.boolean(),
   archived: z.boolean().optional(),
   // [''] for one-size products.
@@ -68,9 +70,10 @@ products.post('/', async (c) => {
   const sizes = checkSizes(p.sizes)
   await c.env.DB.batch([
     stmt(c.env.DB,
-      `INSERT INTO products (id, owner_id, title_sl, title_en, description_sl, description_en, category, link, release, weight_g, published)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      p.id, p.ownerId, p.titleSl, p.titleEn, p.descriptionSl, p.descriptionEn, p.category, p.link, p.release || null, p.weightG, p.published ? 1 : 0),
+      `INSERT INTO products (id, owner_id, title_sl, title_en, description_sl, description_en, category, link, release, weight_g, sort, artists, published)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      p.id, p.ownerId, p.titleSl, p.titleEn, p.descriptionSl, p.descriptionEn, p.category, p.link, p.release || null, p.weightG, p.sort,
+      JSON.stringify(p.artists), p.published ? 1 : 0),
     ...sizeAndPriceStatements(c.env.DB, p.id, sizes, p.prices)
   ])
   return c.json({ id: p.id })
@@ -94,11 +97,11 @@ products.put('/:id', async (c) => {
   await c.env.DB.batch([
     stmt(c.env.DB,
       `UPDATE products SET owner_id = ?, title_sl = ?, title_en = ?, description_sl = ?, description_en = ?, category = ?,
-         link = ?, release = ?, weight_g = ?, published = ?,
+         link = ?, release = ?, weight_g = ?, sort = ?, artists = ?, published = ?,
          archived_at = CASE WHEN ? = 1 THEN COALESCE(archived_at, ?) ELSE NULL END, updated_at = ?
        WHERE id = ?`,
       p.ownerId, p.titleSl, p.titleEn, p.descriptionSl, p.descriptionEn, p.category, p.link, p.release || null,
-      p.weightG, p.published ? 1 : 0, p.archived ? 1 : 0, nowIso(), nowIso(), id),
+      p.weightG, p.sort, JSON.stringify(p.artists), p.published ? 1 : 0, p.archived ? 1 : 0, nowIso(), nowIso(), id),
     ...sizeAndPriceStatements(c.env.DB, id, sizes, p.prices)
   ])
   return c.json({ id })

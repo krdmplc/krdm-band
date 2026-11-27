@@ -13,6 +13,8 @@ export function useNotificationText () {
     switch (n.topic) {
       case 'order.new':
         return t(`Novo naročilo ${p.number}: ${p.customer}, ${eur(Number(p.cents))}`, `New order ${p.number}: ${p.customer}, ${eur(Number(p.cents))}`)
+      case 'contact.new':
+        return t(`Sporočilo s spletne strani: ${p.name}`, `Message from the website: ${p.name}`)
       case 'stock.negative':
         return t(`Zaloga pod ničlo: ${p.product} ${p.size} v lokaciji ${p.location} (${p.qty}). Preštej jo.`,
           `Stock below zero: ${p.product} ${p.size} at ${p.location} (${p.qty}). Count it.`)

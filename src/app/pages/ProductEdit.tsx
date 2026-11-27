@@ -14,7 +14,7 @@ import { ErrorNote, PageHeader, euroInputProps, fromEuros, sizeLabel, toEuros, u
 
 const EMPTY: ProductInput = {
   id: '', ownerId: '', titleSl: '', titleEn: '', descriptionSl: '', descriptionEn: '', category: 'apparel',
-  link: null, release: null, weightG: 200, published: true, archived: false, sizes: ['S', 'M', 'L', 'XL'], prices: {}
+  link: null, release: null, weightG: 200, sort: 0, artists: [], published: true, archived: false, sizes: ['S', 'M', 'L', 'XL'], prices: {}
 }
 
 const slugify = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -139,6 +139,10 @@ export function ProductEdit () {
             <Textarea label={t('Opis (angleško)', 'Description (English)')} autosize minRows={3} value={form.descriptionEn} onChange={(e) => set('descriptionEn', e.currentTarget.value)} />
             <TextInput label={t('Povezava (Bandcamp)', 'Link (Bandcamp)')} type="url" value={form.link ?? ''} onChange={(e) => set('link', e.currentTarget.value || null)} />
             <TextInput label={t('Izdaja (ime datoteke na spletni strani)', 'Release (its file name on the website)')} value={form.release ?? ''} onChange={(e) => set('release', e.currentTarget.value || null)} />
+            <TagsInput label={t('Bendi na spletni strani', 'Bands on the website')}
+              description={t('Samo če jih je več kot lastnik (npr. majica KRDM z vsemi bendi): oznake bendov na krdm.si (ime mape, npr. gmb). Izdelek je potem na strani vsakega od njih.',
+                'Only if more than the owner (e.g. the KRDM shirt with every band): the bands\' ids on krdm.si (folder name, e.g. gmb). The item then shows on each of their pages.')}
+              value={form.artists} onChange={(v) => set('artists', v.map((a) => a.trim().toLowerCase()).filter(Boolean))} />
           </Stack>
         </Card>
         <Stack>
@@ -169,6 +173,10 @@ export function ProductEdit () {
               <NumberInput label={t('Teža brez embalaže', 'Weight without packaging')} suffix=" g" min={0} value={form.weightG}
                 description={t('Za izračun poštnine.', 'For the shipping cost.')} onChange={(v) => set('weightG', Number(v) || 0)} />
               <Switch label={t('Objavljeno na spletni strani', 'Published on the website')} checked={form.published} onChange={(e) => set('published', e.currentTarget.checked)} />
+              <NumberInput label={t('Vrstni red na spletni strani', 'Order on the website')} min={0} step={10} value={form.sort}
+                description={t('Najlepši izdelki naprej: manjša številka je višje, v korakih po 10. 0 = brez mesta (za razvrščenimi, najnovejši prvi).',
+                  'Best-looking first: a lower number comes earlier, in steps of 10. 0 = unranked (after the ranked ones, newest first).')}
+                onChange={(v) => set('sort', Number(v) || 0)} />
               {!isNew && <Switch label={t('Arhivirano (ne prodajamo več)', 'Archived (no longer sold)')} checked={form.archived ?? false} onChange={(e) => set('archived', e.currentTarget.checked)} />}
               <Group>
                 <Button onClick={() => save.mutate()} loading={save.isPending} disabled={!form.titleSl || !form.id || form.prices.full === undefined}>

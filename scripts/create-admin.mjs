@@ -39,7 +39,7 @@ const expires = new Date(Date.now() + 14 * 86400_000).toISOString()
 const sql = [
   `INSERT INTO users (id, name, email, is_label_admin) VALUES (${q(id)}, ${q(values.name)}, ${q(values.email)}, 1)`,
   `INSERT INTO invites (token_hash, user_id, expires_at) VALUES (${q(tokenHash)}, ${q(id)}, ${q(expires)})`,
-  ...['order.new', 'stock.negative', 'sale.flagged'].map((t) =>
+  ...['order.new', 'stock.negative', 'sale.flagged', 'contact.new'].map((t) =>
     `INSERT INTO subscriptions (user_id, topic, owner_id) VALUES (${q(id)}, ${q(t)}, '*')`)
 ].join('; ')
 

@@ -5,6 +5,7 @@
 import type { Locale } from '../../shared/money'
 import { postQuote } from '../../shared/shipping'
 import type { CartLineInput, QuoteResult, ShippingMethod } from '../../shared/types'
+import { freePostage, type WebOrderRules } from '../../shared/website'
 import { shippingSettings } from '../routes/owners'
 import { all, first, marks, stmt } from './db'
 import { fail, uid } from './http'
@@ -58,6 +59,12 @@ async function onlineStock (db: D1Database, productId: string, size: string) {
     `SELECT e.location_id, SUM(e.qty) AS qty FROM stock_entries e JOIN locations l ON l.id = e.location_id
      WHERE l.online = 1 AND l.archived_at IS NULL AND e.product_id = ? AND e.size = ?
      GROUP BY e.location_id HAVING SUM(e.qty) > 0 ORDER BY qty DESC`, productId, size)
+}
+
+export async function webOrderRules (db: D1Database): Promise<WebOrderRules> {
+  const row = await first<{ value: string }>(db, "SELECT value FROM settings WHERE key = 'web_orders'")
+  const v = row ? JSON.parse(row.value) as Partial<WebOrderRules> : {}
+  return { minOrderCents: v.minOrderCents ?? 0, freePostageFromCents: v.freePostageFromCents ?? 0 }
 }
 
 const title = (p: ProductForCart, locale: Locale) => (locale === 'en' && p.title_en) || p.title_sl
@@ -116,6 +123,8 @@ export async function createOrder (db: D1Database, o: NewOrder) {
   const unavailable = q.lines.filter((l) => !l.available).map(({ productId, size }) => ({ productId, size }))
   if (q.lines.length === 0) fail(400, 'empty_order')
   if (unavailable.length) fail(409, 'out_of_stock', unavailable)
+  const rules = web ? await webOrderRules(db) : null
+  if (rules && q.itemsCents < rules.minOrderCents) fail(400, 'below_minimum', { minOrderCents: rules.minOrderCents })
 
   const { products } = await cartProducts(db, q.lines.map((l) => l.productId))
   const id = uid()
@@ -145,7 +154,8 @@ export async function createOrder (db: D1Database, o: NewOrder) {
         uid(), line.productId, line.size, loc.location_id, -take, id, o.createdBy))
     }
   }
-  const shippingCents = !web && o.shippingCents !== undefined ? o.shippingCents : q.shippingCents
+  const free = rules !== null && freePostage(rules, o.shippingMethod, itemsCents)
+  const shippingCents = !web && o.shippingCents !== undefined ? o.shippingCents : free ? 0 : q.shippingCents
   const c = o.customer
   statements.unshift(stmt(db,
     `INSERT INTO orders (id, number, source, locale, customer_name, email, phone, street, postcode, city, country, note,
@@ -155,6 +165,6 @@ export async function createOrder (db: D1Database, o: NewOrder) {
     o.shippingMethod, itemsCents, shippingCents, o.ipHash, o.createdBy))
   statements.push(stmt(db, "INSERT INTO order_log (order_id, user_id, event) VALUES (?, ?, 'created')", id, o.createdBy))
   await db.batch(statements)
-  await notifySubscribers(db, 'order.new', [...ownerIds], { number, customer: c.name, cents: itemsCents }, `/orders/${id}`, o.createdBy ?? undefined)
-  return { id, number, itemsCents, shippingCents, totalCents: shippingCents === null ? null : itemsCents + shippingCents }
+  const notified = await notifySubscribers(db, 'order.new', [...ownerIds], { number, customer: c.name, cents: itemsCents }, `/orders/${id}`, o.createdBy ?? undefined)
+  return { id, number, itemsCents, shippingCents, totalCents: shippingCents === null ? null : itemsCents + shippingCents, freePostage: free, notified }
 }

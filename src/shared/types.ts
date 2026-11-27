@@ -78,6 +78,12 @@ export interface Product {
   onlineStock: Record<string, number>
   // Moving average purchase cost; only for people who manage the owner.
   avgCostCents?: number | null
+  // Place in the website's merch list: ranked by hand, lowest first, in steps
+  // of 10; 0 = unranked (after the ranked ones, newest first).
+  sort: number
+  // Website artist refs the item is listed under, if more than its owner.
+  artists: string[]
+  createdAt: string
   updatedAt: string
 }
 
@@ -92,6 +98,8 @@ export interface ProductInput {
   link: string | null
   release: string | null
   weightG: number
+  sort: number
+  artists: string[]
   published: boolean
   archived?: boolean
   sizes: string[]
@@ -315,19 +323,27 @@ export interface ReportRow {
 }
 
 // Public API (the website).
+// The website builds its merch pages from this (krdm-www content/merch/_content.gotmpl).
 export interface CatalogItem {
   id: string
-  owner: { id: string, name: string }
+  // A band's id is its artist ref on the website; the label's items are KRDM's.
+  owner: { id: string, name: string, kind: 'band' | 'label' }
+  // The website's artist refs it is listed under (its band, or the ones it names).
+  artists: string[]
   title: string
   description: string
   category: Category
   link: string | null
   release: string | null
-  priceCents: number
+  // null: not for sale (listed as sold out).
+  priceCents: number | null
   weightG: number
   images: { url: string, width: number | null, height: number | null }[]
   sizes: { size: string, available: boolean }[]
   available: boolean
+  // The app's order (lowest first; the website lists by it), and when added.
+  sort: number
+  createdAt: string
   updatedAt: string
 }
 
@@ -343,4 +359,16 @@ export interface QuoteResult {
   shippingCents: number | null
   totalCents: number | null
   postService: string | null
+}
+
+// A message from the website's contact form (app: Messages).
+export interface ContactMessage {
+  id: string
+  name: string
+  email: string
+  message: string
+  locale: Locale
+  handledAt: string | null
+  handledBy: string | null
+  createdAt: string
 }

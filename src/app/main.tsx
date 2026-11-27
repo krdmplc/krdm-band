@@ -18,6 +18,7 @@ import { Settings } from './pages/admin/Settings'
 import { Home } from './pages/Home'
 import { Invite, Login } from './pages/Login'
 import { Money } from './pages/Money'
+import { Messages } from './pages/Messages'
 import { OrderDetail, Orders } from './pages/Orders'
 import { Pos } from './pages/Pos'
 import { ProductEdit } from './pages/ProductEdit'
@@ -65,6 +66,7 @@ function App () {
                 <Route path="stock" element={<Stock />} />
                 <Route path="orders" element={<Orders />} />
                 <Route path="orders/:orderId" element={<OrderDetail />} />
+                <Route path="messages" element={<Messages />} />
                 <Route path="money" element={<Money />} />
                 <Route path="reports" element={<Reports />} />
                 <Route path="profile" element={<Profile />} />

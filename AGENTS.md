@@ -83,7 +83,17 @@ pull request. GitHub enforces this with a ruleset on `main`.
 
 - `src/worker/`: the API. `index.ts` mounts the routes; `lib/` holds auth,
   database helpers, permissions, notifications, catalog loading and order
-  creation. `/api/public/*` is the website's API (no sign-in, CORS `*`).
+  creation. `/api/public/*` is the website's API (no sign-in, CORS `*`, so it
+  works from www.krdm.si, its previews and localhost): the catalog the site is
+  built from, live availability, quotes, orders and contact messages (also a
+  plain form post, for the website's no-JS contact form). Keep its JSON
+  (`CatalogItem` in `src/shared/types.ts`) working for the deployed website:
+  add fields, don't rename them.
+- Email: `lib/email.ts` (see "It must cost nothing" for who can receive it).
+  Web orders and contact messages are emailed to the people notified, in
+  Slovenian, with `Reply-To` the customer.
+- Cron (`scheduled` in `index.ts`, every 10 minutes): `lib/site.ts` rebuilds
+  the website when its catalog changed.
 - `src/app/`: the PWA. `offline.ts` is the offline model, `session.tsx` the
   signed-in person (cached for offline), `ui.tsx` shared hooks and components,
   `pages/` one file per area.
@@ -208,7 +218,12 @@ real phones without touching real stock, orders or money.
 One-time setup, done on 2026-11-23: `wrangler d1 create krdm-band --location weur`,
 `wrangler r2 bucket create krdm-media --location weur` (R2 commands need
 `CLOUDFLARE_ACCOUNT_ID` set), `wrangler secret put IP_SALT` (a long random
-string), and the data imported as described above. A new admin account:
+string), and the data imported as described above. For the website switch-over:
+`band.krdm.si` onboarded for Email Sending and the app users' addresses added as
+destination addresses (2026-11-27); `wrangler secret put SITE_BUILD_HOOK`
+(krdm-www's build hook URL, production only; without it the site isn't rebuilt
+on product changes); and the import run again for the items added on the website
+since the first one. A new admin account:
 `node scripts/create-admin.mjs --name "…" --email … --remote --url
 https://krdm-band.krdm.workers.dev`. Don't commit secrets; `.dev.vars`
 is ignored.
@@ -223,15 +238,29 @@ uploads beyond 4 GB stored or 20 000 writes a month; reads only go through the
 Worker, which the Workers limit keeps far below R2's free reads. Don't add a
 path that reads or writes R2 without going through those limits, don't serve the
 bucket publicly (an `r2.dev` URL or a custom domain on it bypasses the Worker),
-and don't move the account to Workers Paid. A budget alert on the account emails
+and don't move the account to Workers Paid.
+
+**Email** (Cloudflare Email Sending, binding `EMAIL`) is free on Workers Free
+only to the account's **verified destination addresses**; mail to anyone else
+needs Workers Paid. So the app emails only people with an account here, and
+only once their address is verified (Email Service → Email Routing →
+Destination addresses → add it; Cloudflare emails them a link). A send to an
+unverified address fails, is logged and skipped; the in-app notification is
+still there. Never add email to customers or other outside addresses. The
+sending domain is `band.krdm.si` (onboarded in Email Service → Email Sending;
+its records are on `cf-bounce.band.krdm.si` and `_dmarc.band.krdm.si`).
+krdm.si's own MX and SPF belong to the Neoserv mailbox (mail.krdm.si): leave them
+alone.
+
+A budget alert on the account emails
 on any spend (Billing → Billable Usage). The budget counts only this app's
 uploads; the website's CMS writes to the same bucket outside it, so the alert is
 the backstop for both.
 
 ## Not built yet
 
-Merch: see the end of its brief ("Next"): box templates, the website
-switch-over (in krdm-www), email, data retention for orders. Music and the
+Merch: see the end of its brief ("Next"): box templates, customer emails,
+data retention for orders and contact messages. Music and the
 later sections: [docs/band-app.md](docs/band-app.md) and
 [docs/music-brief.md](docs/music-brief.md).
 

@@ -3,7 +3,9 @@ import { cors } from 'hono/cors'
 import { HTTPException } from 'hono/http-exception'
 import { loadUser, sameOrigin } from './lib/auth'
 import type { AppEnv } from './lib/http'
+import { rebuildSiteIfChanged } from './lib/site'
 import { auth } from './routes/auth'
+import { messages } from './routes/messages'
 import { money } from './routes/money'
 import { notifications } from './routes/notifications'
 import { orders } from './routes/orders'
@@ -56,7 +58,14 @@ app.route('/api/sales', sales)
 app.route('/api/orders', orders)
 app.route('/api/money', money)
 app.route('/api/notifications', notifications)
+app.route('/api/messages', messages)
 app.route('/api/reports', reports)
 app.all('/api/*', (c) => c.json({ error: 'not_found' }, 404))
 
-export default app
+export default {
+  fetch: app.fetch,
+  // Cron (wrangler.jsonc): rebuild the website when its merch changed (lib/site.ts).
+  async scheduled (_controller, env, ctx) {
+    ctx.waitUntil(rebuildSiteIfChanged(env))
+  }
+} satisfies ExportedHandler<Env>
