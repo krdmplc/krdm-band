@@ -61,12 +61,17 @@ Both admin roles are kept in this app, not in the login provider (see Login).
   the server code a thin HTTP API all the same, so it isn't tied to one host.
   The stack is chosen here, not by whoever builds it: Hono on the Worker, React
   with Mantine (a component library made for back offices) in the PWA.
-- **Email waits for Cloudflare's email sending**, which needs krdm.si's DNS on
-  Cloudflare. Until then notifications are in the app only.
-- **The app takes web orders; the Netlify `order` form is retired.** The
-  cart submits to the app's API, and the app's notifications send the
-  emails (see "Web orders" and "Notifications"). The contact form stays on
-  Netlify Forms for now.
+- **Email goes only to us** (decided 2026-11-27). Cloudflare Email Sending is
+  free on Workers Free only to the account's *verified destination
+  addresses*; any other recipient needs Workers Paid, which the $0 rule rules
+  out. So notifications are emailed to people with an app account whose
+  address is verified there, and customers get no email from the app: the
+  thank-you page shows their order, and we reply by hand (the order email's
+  `Reply-To` is the customer). Sent from `obvestila@band.krdm.si` (the
+  subdomain is onboarded for sending; krdm.si's own mail stays at Neoserv).
+- **The app takes web orders and contact messages; Netlify Forms is retired**
+  (2026-11-27). The cart and the contact form post to the app's API, and the
+  app's notifications send the emails (see "Web orders" and "Notifications").
 - **Repo `krdm-band` (was `krdm-merch`), address `band.krdm.si`.** The website repo keeps only
   the client side: catalog fetch, availability and checkout.
 - **First phase**: selling at gigs, inventory (with locations), web orders and
@@ -215,14 +220,14 @@ The design is double-entry underneath and two numbers on the phone screen.
   collects the payment, and the transfers split it per owner automatically.
 - Orders can also be entered by hand (DMs, phone).
 - A band admin sees orders that contain their band's items.
-- **The customer gets emails too**, which Netlify Forms never sent:
-  - right away: an order confirmation with the order number and items;
-  - once an admin has set the shipping cost: the total and how to pay
-    (amount, IBAN, reference, and the UPN QR code as an image);
-  - when the order ships or is ready for pickup.
-
-  Each email is sent from the order page with one tap and logged on the
-  order.
+- **The customer gets no email from the app** (see Decisions: it would need
+  Workers Paid). As with Netlify Forms, the website's thank-you page shows the
+  order number and items, and we write to the customer ourselves: replying to
+  the order email reaches them. Customer emails (confirmation, total and how to
+  pay with the UPN QR code, shipped) wait until they can be sent at no cost.
+- **The website's rules**: a minimum order (20 €) and free postage within
+  Slovenia from 100 € (setting `web_orders`; the website states them too).
+  Outside Slovenia an order is `abroad`, its postage set by hand.
 - **The order form is guarded against spam and abuse**, which Netlify used to
   do for us:
   - a honeypot field;
@@ -244,12 +249,15 @@ The design is double-entry underneath and two numbers on the phone screen.
   order" (for Armaroth, or for all), "handover waiting for me",
   "negative stock" and "stand not synced 24 h after closing". Each person
   manages their own subscriptions; admins set defaults for their band.
-- Every notification also appears in an in-app list. Email is the first
-  delivery channel; web push to the installed PWA comes later.
-- **Sending email**: Cloudflare's email sending (decided), once krdm.si's DNS
-  is on Cloudflare, with SPF, DKIM and DMARC for krdm.si. The sender is a
-  no-reply address. Customer emails set `Reply-To` to a monitored address of
-  the order's handler, or of the label admin.
+- Every notification also appears in an in-app list. New web orders and
+  contact messages (`contact.new`, label admins only) are also emailed; web
+  push to the installed PWA comes later.
+- **Sending email**: Cloudflare Email Sending (`src/worker/lib/email.ts`), from
+  `obvestila@band.krdm.si`, with SPF, DKIM and DMARC on the subdomain
+  (`cf-bounce.band.krdm.si`, `_dmarc.band.krdm.si`). Only to verified
+  destination addresses (Decisions): add a person's address in Email Service →
+  Email Routing → Destination addresses and they confirm it once. The email
+  sets `Reply-To` to the customer or the sender of the message.
 
 ## Offline
 
@@ -276,28 +284,31 @@ Venues often have no signal; a stand must work for a whole night without one.
 
 ## Website
 
-- **Build time**: Hugo fetches the catalog from the public API
-  (`resources.GetRemote`) and builds the merch pages, JSON-LD `Product`,
-  `llms.txt` entries and the release pages' merch lists. Photos are fetched the
-  same way, so `partials/image.html` still resizes them.
-- **Rebuilds**: a change to a product (not a sale) calls the site's build hook,
-  debounced. The daily rebuild stays.
-- **Runtime**: item pages, the merch list and the cart fetch availability with
-  async JS. They show in stock or sold out per size, never counts, and fall
-  back to "ask us" if the API is unreachable.
-- **Orders**: `cart.js` posts the structured order (items as product id,
-  size and quantity, plus the customer's details) to the app's API. The app
-  checks prices and stock, assigns the order number and returns it, and the
-  thank-you page (`{{</* order-done */>}}`) shows it.
-  - If the API can't be reached, the cart is kept, an error says to try
-    again, and the contact form is offered.
-  - Retire the Netlify `order` form and its success page, and update
-    `AGENTS.md` and `assets/scripts/netlify-form.js`, which then serves only
-    the contact form.
-- **Switch over all at once**: catalog fetch, availability and checkout go live
-  together, once the app holds the imported products and stock.
-- When the website leaves Netlify, the app's API can also take the contact
-  form.
+Switched over on 2026-11-27 (krdm-www's `AGENTS.md` describes its side).
+
+- **Build time**: Hugo fetches the catalog (`/api/public/catalog`) with a
+  content adapter (`content/merch/_content.gotmpl`) and builds the merch pages,
+  JSON-LD `Product`, `llms.txt` entries, the release pages' merch lists and the
+  artist pages' merch (a product's `artists`, or its band). Photos are
+  downloaded at build time, so the website resizes and serves them itself. The
+  order on the website is the product's `sort` ("Order on the website").
+- **Rebuilds**: a cron trigger every 10 minutes hashes the catalog without
+  availability and calls the site's build hook (secret `SITE_BUILD_HOOK`) when
+  it changed (`src/worker/lib/site.ts`). The daily rebuild stays.
+- **Runtime**: item pages, merch cards and the cart fetch `/api/public/availability`
+  and show in stock or sold out per size, never counts; if the API is
+  unreachable they keep what the build said.
+- **Orders**: `cart.js` posts the structured order (product id, size,
+  quantity, the customer's details and address) to `/api/public/orders`. The
+  app checks prices, stock and the minimum, assigns the order number and
+  returns it, and the thank-you page (`{{</* order-done */>}}`) shows it. Lines
+  that sold out meanwhile come back as `out_of_stock` and the cart marks them.
+- **Contact**: the form posts to `/api/public/contact`, as JSON with JS, or as a
+  plain form post without it (the app then redirects to the website's thank-you
+  page, only on krdm.si, its previews and localhost). Stored in
+  `contact_messages`, read in Messages, emailed to `contact.new` subscribers.
+- Website previews use the app's `main` Preview (preview data), so orders and
+  messages from them are test data.
 
 ## Login
 
@@ -386,20 +397,19 @@ account at https://krdm-band.krdm.workers.dev:
   paid, sent, cancel with stock and money following.
 - In-app notifications with subscriptions per band.
 - Reports per event, product, band or month for a date range.
-- `scripts/import-hugo.mjs`: the one-time import of the website's merch.
+- `scripts/import-hugo.mjs`: the import of the website's merch (run at the start
+  and again at the switch-over).
+- The website switch-over (2026-11-27): krdm.si builds its merch pages from the
+  catalog, checks availability live, and posts orders and contact messages
+  here; a cron rebuilds the site when the catalog changes; contact messages
+  in the app (Messages); notification emails.
 
 ## Next
 
 - **Box template** (from [merch-gig-box.md](merch-gig-box.md)): standard
   contents per gig box, "pack to template", a closing count that asks only
   what's missing, and the printable contents list with a QR code.
-- **`band.krdm.si`**: move krdm.si's DNS to Cloudflare when the address is
-  needed (decided: no Pages CNAME workaround).
-- **Website switch-over** (krdm-www): catalog at build time, availability with
-  JS, checkout to the API, rebuild hook on product changes. It waits for email,
-  so customers get their confirmation and admins hear about new orders.
-- **Email**: customer emails and email notifications, once the DNS is on
-  Cloudflare.
-- Delete customers' contact details 12 months after an order is done (a cron
-  trigger); the "stand not synced 24 h after closing" notification; a limit on
+- **Customer emails**, if they can ever be sent at no cost.
+- Delete customers' contact details 12 months after an order is done, and
+  contact messages 12 months after they were answered (a cron trigger); the "stand not synced 24 h after closing" notification; a limit on
   failed sign-ins.

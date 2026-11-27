@@ -60,6 +60,7 @@ const ERRORS: Record<string, [string, string]> = {
   shipping_unknown: ['Najprej vpiši poštnino.', 'Enter the shipping cost first.'],
   out_of_stock: ['Nekaj ni več na zalogi.', 'Something is out of stock.'],
   empty_order: ['Naročilo je prazno.', 'The order is empty.'],
+  below_minimum: ['Naročilo je pod najmanjšim zneskom.', 'The order is below the minimum.'],
   unknown_receiver: ['Prejemnika ni.', 'Unknown receiver.'],
   not_a_seller: ['Na tej stojnici ne prodajaš.', "You don't sell at this stand."],
   cannot_demote_self: ['Sebi tega ne moreš narediti.', "You can't do that to yourself."],

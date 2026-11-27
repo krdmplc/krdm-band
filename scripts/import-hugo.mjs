@@ -1,8 +1,11 @@
 #!/usr/bin/env node
-// One-time import of the website's merch (krdm-www/content/merch/*.md) into the app.
+// Import of the website's merch (krdm-www/content/merch/*.md) into the app.
 // Writes build/import.sql (products, owners, prices, sizes, photos, known stock) and
-// build/import-images.sh (copies the photos into R2). Safe to run twice: rows that
-// already exist are left alone.
+// build/import-images.sh (copies the photos into R2). Safe to run again: rows that
+// already exist are left alone, so a second run adds only what is new on the
+// website (products, photos, and counts of sizes that had none). It was run once
+// at the start and once more at the website switch-over (2026-11), after which the
+// website builds its merch from the app and has no merch files left.
 //
 //   node scripts/import-hugo.mjs ../krdm-www
 //   npx wrangler d1 execute krdm-band --local --file build/import.sql
@@ -13,7 +16,9 @@
 // - sizes and photos come from the Slovenian file (the website keeps them only there);
 // - `stock` per size and `quantity` become stock at the location "Zaloga (uvoz)",
 //   which is sold online. Sizes without a count get no stock: count them in the app;
-// - draft items are imported unpublished; weights are a guess by kind, check them.
+// - draft items are imported unpublished; weights are a guess by kind, check them;
+// - `weight` (the website's hand-made order) becomes `sort` and `date` the product's
+//   creation date, also on products imported before (unless `sort` was set in the app).
 
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
@@ -79,10 +84,18 @@ for (const file of files) {
     sql.push(`INSERT OR IGNORE INTO owners (id, name, kind) VALUES (${q(owner)}, ${q(name)}, 'band');`)
   }
   const category = ['apparel', 'music', 'other'].includes(d.category) ? d.category : 'other'
-  sql.push(`INSERT OR IGNORE INTO products (id, owner_id, title_sl, title_en, description_sl, description_en, category, link, release, weight_g, published) VALUES (${[
+  const sort = Number.isInteger(d.weight) && d.weight > 0 ? d.weight : 0
+  const created = d.date ? new Date(d.date).toISOString() : null
+  sql.push(`INSERT OR IGNORE INTO products (id, owner_id, title_sl, title_en, description_sl, description_en, category, link, release, weight_g, published, sort) VALUES (${[
     q(id), q(owner), q(d.title ?? id), q(en.data.title ?? ''), q(sl.content.trim()), q(en.content.trim()), q(category),
-    q(d.link ?? null), q(d.release ?? null), guessWeight(id, category), d.draft ? 0 : 1
+    q(d.link ?? null), q(d.release ?? null), guessWeight(id, category), d.draft ? 0 : 1, sort
   ].join(', ')});`)
+  if (sort) sql.push(`UPDATE products SET sort = ${sort} WHERE id = ${q(id)} AND sort = 0;`)
+  // Listed under more bands than its owner (the KRDM shirt): keep them all.
+  if (artists.length > 1 || (artists.length === 1 && owner === 'krdm')) {
+    sql.push(`UPDATE products SET artists = ${q(JSON.stringify(artists))} WHERE id = ${q(id)} AND artists = '[]';`)
+  }
+  if (created) sql.push(`UPDATE products SET created_at = ${q(created)} WHERE id = ${q(id)} AND created_at > ${q(created)};`)
   if (typeof d.price === 'number') {
     sql.push(`INSERT OR IGNORE INTO product_prices (product_id, tier_id, price_cents) VALUES (${q(id)}, 'full', ${Math.round(d.price * 100)});`)
   }

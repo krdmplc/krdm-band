@@ -40,9 +40,11 @@ notifications.put('/subscriptions', async (c) => {
   const { items } = await body(c, z.object({
     items: z.array(z.object({ topic: z.enum(SUBSCRIBABLE), ownerId: z.string() })).max(500)
   }))
+  // Website messages hold people's contact details and belong to no band: label admins only.
+  const allowed = items.filter((i) => i.topic !== 'contact.new' || (me.isLabelAdmin && i.ownerId === '*'))
   await c.env.DB.batch([
     stmt(c.env.DB, 'DELETE FROM subscriptions WHERE user_id = ?', me.id),
-    ...items.map((i) => stmt(c.env.DB, 'INSERT OR IGNORE INTO subscriptions (user_id, topic, owner_id) VALUES (?, ?, ?)', me.id, i.topic, i.ownerId))
+    ...allowed.map((i) => stmt(c.env.DB, 'INSERT OR IGNORE INTO subscriptions (user_id, topic, owner_id) VALUES (?, ?, ?)', me.id, i.topic, i.ownerId))
   ])
   return c.json({ ok: true })
 })

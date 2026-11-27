@@ -27,7 +27,15 @@
   // KRDM's shared media bucket: the website's CMS uploads to it too, so this app
   // keeps to its own prefixes (`products/`, `imported/`) and never deletes outside them.
   "r2_buckets": [{ "binding": "IMAGES", "bucket_name": "krdm-media" }],
-  // Secrets (wrangler secret put): IP_SALT — hashes customer IPs for the order rate limit.
+  // Notification emails (src/worker/lib/email.ts) through Cloudflare Email Sending,
+  // from band.krdm.si (onboarded as a sending domain in the KRDM account). On Workers
+  // Free it delivers only to the account's verified destination addresses, which is
+  // all we send to: people with an app account, never customers.
+  "send_email": [{ "name": "EMAIL", "allowed_sender_addresses": ["obvestila@band.krdm.si"] }],
+  // Every 10 minutes: rebuild the website if its merch changed (src/worker/lib/site.ts).
+  "triggers": { "crons": ["*/10 * * * *"] },
+  // Secrets (wrangler secret put): IP_SALT — hashes customer IPs for the order and
+  // contact-form rate limits; SITE_BUILD_HOOK — krdm-www's build hook URL (optional).
 
   // Production at https://krdm-band.krdm.workers.dev; Previews (see below) at
   // https://<name>-krdm-band.krdm.workers.dev.
@@ -48,6 +56,8 @@
         "database_id": "d2bd0cb3-dab7-47e2-ae91-2a5868333e5c"
       }
     ],
-    "r2_buckets": [{ "binding": "IMAGES", "bucket_name": "krdm-band-preview" }]
+    "r2_buckets": [{ "binding": "IMAGES", "bucket_name": "krdm-band-preview" }],
+    // Same sender; Previews mark their emails "[predogled]" in the subject.
+    "send_email": [{ "name": "EMAIL", "allowed_sender_addresses": ["obvestila@band.krdm.si"] }]
   }
 }

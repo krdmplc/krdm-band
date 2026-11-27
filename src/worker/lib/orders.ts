@@ -60,6 +60,23 @@ async function onlineStock (db: D1Database, productId: string, size: string) {
      GROUP BY e.location_id HAVING SUM(e.qty) > 0 ORDER BY qty DESC`, productId, size)
 }
 
+// The website's rules for its orders (settings `web_orders`, migration 0003): a
+// minimum order, and free postage within Slovenia from a threshold on. The
+// website states both in words (krdm-www hugo.toml [params.merch]); keep them equal.
+export interface WebOrderRules {
+  minOrderCents: number
+  freePostageFromCents: number
+}
+
+export async function webOrderRules (db: D1Database): Promise<WebOrderRules> {
+  const row = await first<{ value: string }>(db, "SELECT value FROM settings WHERE key = 'web_orders'")
+  const v = row ? JSON.parse(row.value) as Partial<WebOrderRules> : {}
+  return { minOrderCents: v.minOrderCents ?? 0, freePostageFromCents: v.freePostageFromCents ?? 0 }
+}
+
+export const freePostage = (rules: WebOrderRules, method: ShippingMethod, itemsCents: number) =>
+  method === 'post' && rules.freePostageFromCents > 0 && itemsCents >= rules.freePostageFromCents
+
 const title = (p: ProductForCart, locale: Locale) => (locale === 'en' && p.title_en) || p.title_sl
 
 export async function quote (db: D1Database, input: CartLineInput[], method: ShippingMethod, locale: Locale, publishedOnly = true): Promise<QuoteResult> {
@@ -116,6 +133,8 @@ export async function createOrder (db: D1Database, o: NewOrder) {
   const unavailable = q.lines.filter((l) => !l.available).map(({ productId, size }) => ({ productId, size }))
   if (q.lines.length === 0) fail(400, 'empty_order')
   if (unavailable.length) fail(409, 'out_of_stock', unavailable)
+  const rules = web ? await webOrderRules(db) : null
+  if (rules && q.itemsCents < rules.minOrderCents) fail(400, 'below_minimum', { minOrderCents: rules.minOrderCents })
 
   const { products } = await cartProducts(db, q.lines.map((l) => l.productId))
   const id = uid()
@@ -145,7 +164,8 @@ export async function createOrder (db: D1Database, o: NewOrder) {
         uid(), line.productId, line.size, loc.location_id, -take, id, o.createdBy))
     }
   }
-  const shippingCents = !web && o.shippingCents !== undefined ? o.shippingCents : q.shippingCents
+  const free = rules !== null && freePostage(rules, o.shippingMethod, itemsCents)
+  const shippingCents = !web && o.shippingCents !== undefined ? o.shippingCents : free ? 0 : q.shippingCents
   const c = o.customer
   statements.unshift(stmt(db,
     `INSERT INTO orders (id, number, source, locale, customer_name, email, phone, street, postcode, city, country, note,
@@ -155,6 +175,6 @@ export async function createOrder (db: D1Database, o: NewOrder) {
     o.shippingMethod, itemsCents, shippingCents, o.ipHash, o.createdBy))
   statements.push(stmt(db, "INSERT INTO order_log (order_id, user_id, event) VALUES (?, ?, 'created')", id, o.createdBy))
   await db.batch(statements)
-  await notifySubscribers(db, 'order.new', [...ownerIds], { number, customer: c.name, cents: itemsCents }, `/orders/${id}`, o.createdBy ?? undefined)
-  return { id, number, itemsCents, shippingCents, totalCents: shippingCents === null ? null : itemsCents + shippingCents }
+  const notified = await notifySubscribers(db, 'order.new', [...ownerIds], { number, customer: c.name, cents: itemsCents }, `/orders/${id}`, o.createdBy ?? undefined)
+  return { id, number, itemsCents, shippingCents, totalCents: shippingCents === null ? null : itemsCents + shippingCents, freePostage: free, notified }
 }

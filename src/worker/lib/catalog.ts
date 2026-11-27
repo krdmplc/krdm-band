@@ -1,7 +1,8 @@
 // Loading products with their sizes, prices, photos and stock, shared by the
 // app's product pages, stand snapshots and the website's public API.
 
-import type { Category, Product } from '../../shared/types'
+import type { Locale } from '../../shared/money'
+import type { CatalogItem, Category, Product } from '../../shared/types'
 import { all, marks } from './db'
 
 interface ProductRow {
@@ -17,6 +18,9 @@ interface ProductRow {
   weight_g: number
   published: number
   archived_at: string | null
+  sort: number
+  artists: string
+  created_at: string
   updated_at: string
 }
 
@@ -76,6 +80,9 @@ export async function loadProducts (
       images: images.filter((i) => i.product_id === r.id).map(({ id, key, width, height }) => ({ id, key, width, height })),
       stock: stockAll,
       onlineStock: stockOnline,
+      sort: r.sort,
+      artists: JSON.parse(r.artists ?? '[]') as string[],
+      createdAt: r.created_at,
       updatedAt: r.updated_at
     }
     if (opts.costsFor?.(r.owner_id)) product.avgCostCents = costs.get(r.id) ?? null
@@ -91,4 +98,39 @@ export async function averageCosts (db: D1Database, productIds?: string[]): Prom
      FROM stock_entries WHERE type = 'received' AND unit_cost_cents IS NOT NULL AND qty > 0 ${filter}
      GROUP BY product_id`, ...(productIds ?? []))
   return new Map(rows.map((r) => [r.product_id, r.avg]))
+}
+
+// The website's catalog (GET /api/public/catalog, and the rebuild check in
+// lib/site.ts): published products, in the app's order. One without a full
+// price is listed as sold out (an old release kept for its Bandcamp link).
+export async function catalog (db: D1Database, locale: Locale, origin: string): Promise<CatalogItem[]> {
+  const [products, owners] = await Promise.all([
+    loadProducts(db, { publishedOnly: true }),
+    all<{ id: string, name: string, kind: 'band' | 'label' }>(db, 'SELECT id, name, kind FROM owners')
+  ])
+  const ownerById = new Map(owners.map((o) => [o.id, o]))
+  return products
+    .map((p): CatalogItem => {
+      const priced = p.prices.full !== undefined
+      const sizes = p.sizes.map((size) => ({ size, available: priced && (p.onlineStock[size] ?? 0) > 0 }))
+      const owner = ownerById.get(p.ownerId)
+      return {
+        id: p.id,
+        owner: { id: p.ownerId, name: owner?.name ?? p.ownerId, kind: owner?.kind ?? 'band' },
+        artists: p.artists.length ? p.artists : owner?.kind === 'label' ? [] : [p.ownerId],
+        title: (locale === 'en' && p.titleEn) || p.titleSl,
+        description: (locale === 'en' && p.descriptionEn) || p.descriptionSl,
+        category: p.category,
+        link: p.link,
+        release: p.release,
+        priceCents: priced ? p.prices.full : null,
+        weightG: p.weightG,
+        images: p.images.map((i) => ({ url: `${origin}/images/${i.key}`, width: i.width, height: i.height })),
+        sizes,
+        available: sizes.some((s) => s.available),
+        sort: p.sort,
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt
+      }
+    })
 }
