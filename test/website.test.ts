@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { freePostage } from '../src/worker/lib/orders'
-import { allowedThanks } from '../src/worker/routes/public'
+import { allowedThanks, freePostage } from '../src/shared/website'
 
 describe('allowedThanks (the no-JS contact form redirect)', () => {
   it('accepts the website, its previews and localhost', () => {

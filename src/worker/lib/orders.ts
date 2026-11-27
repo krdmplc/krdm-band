@@ -5,6 +5,7 @@
 import type { Locale } from '../../shared/money'
 import { postQuote } from '../../shared/shipping'
 import type { CartLineInput, QuoteResult, ShippingMethod } from '../../shared/types'
+import { freePostage, type WebOrderRules } from '../../shared/website'
 import { shippingSettings } from '../routes/owners'
 import { all, first, marks, stmt } from './db'
 import { fail, uid } from './http'
@@ -60,22 +61,11 @@ async function onlineStock (db: D1Database, productId: string, size: string) {
      GROUP BY e.location_id HAVING SUM(e.qty) > 0 ORDER BY qty DESC`, productId, size)
 }
 
-// The website's rules for its orders (settings `web_orders`, migration 0003): a
-// minimum order, and free postage within Slovenia from a threshold on. The
-// website states both in words (krdm-www hugo.toml [params.merch]); keep them equal.
-export interface WebOrderRules {
-  minOrderCents: number
-  freePostageFromCents: number
-}
-
 export async function webOrderRules (db: D1Database): Promise<WebOrderRules> {
   const row = await first<{ value: string }>(db, "SELECT value FROM settings WHERE key = 'web_orders'")
   const v = row ? JSON.parse(row.value) as Partial<WebOrderRules> : {}
   return { minOrderCents: v.minOrderCents ?? 0, freePostageFromCents: v.freePostageFromCents ?? 0 }
 }
-
-export const freePostage = (rules: WebOrderRules, method: ShippingMethod, itemsCents: number) =>
-  method === 'post' && rules.freePostageFromCents > 0 && itemsCents >= rules.freePostageFromCents
 
 const title = (p: ProductForCart, locale: Locale) => (locale === 'en' && p.title_en) || p.title_sl
 

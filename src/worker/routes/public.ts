@@ -8,7 +8,8 @@ import { all, first, stmt } from '../lib/db'
 import { emailUsers, isPreview, type Mail } from '../lib/email'
 import { type AppEnv, body, fail, uid } from '../lib/http'
 import { notifySubscribers } from '../lib/notify'
-import { createOrder, freePostage, quote, webOrderRules } from '../lib/orders'
+import { allowedThanks, freePostage } from '../../shared/website'
+import { createOrder, quote, webOrderRules } from '../lib/orders'
 
 // What the website (krdm.si) reads and sends. No sign-in, open to any origin
 // (CORS is set in index.ts), because the site runs at www.krdm.si, on Netlify and
@@ -192,23 +193,6 @@ const contactFields = z.object({
   'bot-field': z.string().optional(),
   thanks: z.string().optional()
 })
-
-// Where the no-JS form may send people back to: the website and its previews.
-export function allowedThanks (url: string | undefined): URL | null {
-  if (!url) return null
-  try {
-    const u = new URL(url)
-    const host = u.hostname
-    const ok = (u.protocol === 'https:' && (
-      host === 'krdm.si' || host === 'www.krdm.si' ||
-      host === 'krdm-www.netlify.app' || host.endsWith('--krdm-www.netlify.app') ||
-      host === 'krdm-www.krdm.workers.dev' || host.endsWith('-krdm-www.krdm.workers.dev'))) ||
-      (u.protocol === 'http:' && (host === 'localhost' || host === '127.0.0.1'))
-    return ok ? u : null
-  } catch {
-    return null
-  }
-}
 
 publicApi.post('/contact', async (c) => {
   const isForm = !(c.req.header('content-type') ?? '').includes('application/json')
